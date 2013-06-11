@@ -3,14 +3,17 @@ require 'open3'
 class CliUtils
   attr_accessor :utility, :utility_path
 
-  def initialize
-    @utility
+  def initialize(utility)
+    @utility = utility
     @utility_path
     @version
+    valid?
   end
 
   def valid?
     find_utility
+    get_version
+    supp_util_versions
   end
 
   def find_utility
@@ -23,7 +26,6 @@ class CliUtils
       false
     else
       @utility_path = output[0].chomp
-      get_version
     end
   end
 
@@ -40,8 +42,6 @@ class CliUtils
     }
 
     @version = version.to_s
-
-    supp_util_versions
   end
 
   def supp_util_versions
