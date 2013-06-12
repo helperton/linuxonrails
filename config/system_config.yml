@@ -1,0 +1,9 @@
+development:
+  basedir: "/home/joshua/Projects/linuxonrails"
+  datadir: "/home/joshua/Projects/linuxonrails/testdata"
+
+test:
+
+production:
+  basedir: "/home/joshua/Projects/linuxonrails"
+  datadir: "/home/joshua/Projects/linuxonrails/data"
