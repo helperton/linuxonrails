@@ -1,3 +1,4 @@
+require 'spec_helper.rb'
 require 'cli_funcs.rb'
 
 describe Rsync do
@@ -28,10 +29,13 @@ describe Rsync do
   it "should track changes for a source and dest which aren't different" do
     r = Rsync.new
     r.flag_dryrun
-    r.source = "#{r.datadir}/source"
-    r.destination = "#{r.datadir}/source_nochanges"
+    r.source = "#{r.datadir}/rsync/testing/source/"
+    r.destination = "#{r.datadir}/rsync/testing/source_nochanges/"
     r.rsync
-    r.uptodate.should == 30
+    r.output.each do |line|
+      print line
+    end
+    r.uptodate.size.should == 30
     r.deleted.should == 0
     r.modified.should == 0
   end

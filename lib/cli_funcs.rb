@@ -2,13 +2,14 @@ require 'system_config.rb'
 require 'cli_utils.rb'
 
 class CliFuncs
-  attr_accessor :basedir, :datadir
+  attr_accessor :basedir, :datadir, :output_filter
   attr_reader :output
 
   def initialize
-    @basedir
-    @datadir
+    @basedir = String
+    @datadir = String
     @output = Array.new
+    @output_filter = String
     set_dirs
   end
 
@@ -31,6 +32,9 @@ class CliFuncs
       puts "Args: #{args}" if debug
       stdin, stdout_and_stderr = Open3.popen2e(*args)
       stdout_and_stderr.each do |line|
+        if line =~ /#{@output_filter}/ then 
+          next 
+        end
         @output.push(line)
         p line if debug
       end
@@ -41,7 +45,7 @@ class CliFuncs
 end
 
 class Rsync < CliFuncs
-  attr_accessor :flags_run, :cmd_run, :source, :destination
+  attr_accessor :flags_run, :cmd_run, :source, :destination, :output_filter
   attr_reader :uptodate, :deleted, :modified, :basedir, :datadir, :output
 
   def initialize
@@ -53,15 +57,55 @@ class Rsync < CliFuncs
     @source = nil
     @destination = nil
     flags_base
+    output_filters
   end
 
   def rsync
     run_and_capture(cmd_run)
   end
 
+  def find_uptodate
+
+  end
+
+  def output_filters
+    filter = Array.new
+
+    # blank line
+    filter.push("^$")
+    # ignore line
+    filter.push("^sending incremental file list")
+    # ignore line
+    filter.push("^building file list ...")
+    # ignore line
+    filter.push("^expand file_list\s\w+")
+    # ignore line
+    filter.push("^rsync: expand\s\w+")
+    # ignore line
+    filter.push("^opening connection\s\w+")
+    # ignore line - should probably capture this info
+    filter.push("^total")
+    # ignore line - should probably capture this info
+    filter.push("^wrote")
+    # ignore line - should probably capture this info
+    filter.push("^sent")
+    # ignore line
+    filter.push("^done")
+    # ignore line
+    filter.push("^excluding")
+    # ignore line
+    filter.push("^hiding")
+    # ignore line
+    filter.push("^delta( |-)transmission (dis|en)abled")
+    # ignore line
+    filter.push("^deleting in \./")
+
+    @output_filter = filter.join("|")
+  end
+
   def cmd_run
     u = CliUtils.new("rsync")
-    [u.utility_path, flags_run].flatten
+    [u.utility_path, flags_run, @source, @destination].flatten
   end
   
   def flags_run
