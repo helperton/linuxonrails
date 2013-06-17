@@ -24,9 +24,6 @@ class CliFuncs
   
   def run_and_capture(*args)
     args.flatten!
-    stdin = nil
-    stdout_and_stderr = nil
-    wait_thr = nil
     debug = false
     begin
       puts "Args: #{args}" if debug
@@ -69,6 +66,10 @@ class Rsync < CliFuncs
   end
 
   def output_filters
+    output_filters_junk
+  end
+
+  def output_filters_junk
     filter = Array.new
 
     # blank line
