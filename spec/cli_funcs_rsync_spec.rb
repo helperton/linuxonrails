@@ -4,20 +4,33 @@ describe Rsync do
 
   it "should verify that the base run flags are correct" do
     r = Rsync.new
-    r.flags_run.should == "-a -vv -i --delete"
+    r.flags_run.should == ["-a", "-vv", "-i", "--delete"]
   end
 
   it "should verify that we've added 'dryrun' flag to base flags" do
     r = Rsync.new
-    r.flag_add(r.flag_dryrun)
-    r.flags_run.should == "-a -vv -i --delete -n"
+    r.flag_dryrun
+    r.flags_run.should == ["-a", "-vv", "-i", "--delete", "-n"]
+  end
+
+  it "should verify that source is set correctly" do
+    r = Rsync.new
+    r.source = "testing"
+    r.source.should == "testing"
+  end
+  
+  it "should verify that destination is set correctly" do
+    r = Rsync.new
+    r.destination = "testing"
+    r.destination.should == "testing"
   end
   
   it "should track changes for a source and dest which aren't different" do
     r = Rsync.new
-    puts r.basedir
-    r.flag_add(r.flag_dryrun)
-    r.rsync("#{r.datadir}/source","#{r.datadir}/source_nochanges")
+    r.flag_dryrun
+    r.source = "#{r.datadir}/source"
+    r.destination = "#{r.datadir}/source_nochanges"
+    r.rsync
     r.uptodate.should == 30
     r.deleted.should == 0
     r.modified.should == 0

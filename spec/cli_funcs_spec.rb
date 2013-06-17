@@ -28,6 +28,6 @@ describe CliFuncs do
     u = CliUtils.new("rsync")
     f = CliFuncs.new
     f.run_and_capture(u.utility_path, "--version")
-    f.output[-1].should =~ /rsync error: syntax or usage error/
+    f.output[-1].chomp.should == "General Public Licence for details."
   end
 end
