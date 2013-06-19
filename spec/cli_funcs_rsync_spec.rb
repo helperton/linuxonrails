@@ -32,9 +32,7 @@ describe Rsync do
     r.source = "#{r.datadir}/rsync/testing/source/"
     r.destination = "#{r.datadir}/rsync/testing/source_nochanges/"
     r.rsync
-    r.output.each do |line|
-      print line
-    end
+    r.output_processed
     r.uptodate.size.should == 30
     r.deleted.should == 0
     r.modified.should == 0
