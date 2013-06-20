@@ -33,9 +33,9 @@ describe Rsync do
     r.destination = "#{r.datadir}/rsync/testing/source_nochanges/"
     r.rsync
     r.output_processed
-    r.uptodate.size.should == 30
-    r.deleted.should == 0
-    r.modified.should == 0
+    r.uptodate.size.should == 28
+    r.deleted.size.should == 0
+    r.modified.size.should == 0
   end
 
 end

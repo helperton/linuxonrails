@@ -97,7 +97,35 @@ class Rsync < CliFuncs
   def process_itemized(line)
     # Break apart the line by spaces (e.g. ".f          9/file9")
     attrs,item = line.split(/\s+/, 2)
-    #if attrs.split("")[0] == 
+    # Break apart itemized attrs on each character 0 = . 1 = f 2 = nil, 3 = nil ...
+    attrs_p = attrs.split("")
+    # Begin check's for file/directory disposition according to rsync
+    if(attrs_p[0] ||= nil == "." and 
+       attrs_p[1] ||= nil =~ /f|d|L|D/ and 
+       attrs_p[2] ||= nil == nil and
+       attrs_p[3] ||= nil == nil and
+       attrs_p[4] ||= nil == nil and
+       attrs_p[5] ||= nil == nil and
+       attrs_p[6] ||= nil == nil and
+       attrs_p[7] ||= nil == nil and
+       attrs_p[8] ||= nil == nil
+      )
+      @uptodate.push(line)
+    elsif(
+       attrs_p[0] ||= nil == "*" and 
+       attrs_p[1] ||= nil == "d" and 
+       attrs_p[2] ||= nil == "e" and
+       attrs_p[3] ||= nil == "l" and
+       attrs_p[4] ||= nil == "e" and
+       attrs_p[5] ||= nil == "t" and
+       attrs_p[6] ||= nil == "i" and
+       attrs_p[7] ||= nil == "n" and
+       attrs_p[8] ||= nil == "g" 
+      )
+      @deleted.push(line) 
+    else
+      @modified.push(line) 
+    end
   end
 
   def set_output_filter_warn_err
