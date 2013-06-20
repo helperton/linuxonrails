@@ -54,7 +54,7 @@ class Rsync < CliFuncs
     @output_filter_junk = String
     @output_filter_excluded = String
     @output_filter_warn_err = String
-    flags_base
+    set_flags_base
     set_output_filters
   end
 
@@ -75,18 +75,29 @@ class Rsync < CliFuncs
         next
       elsif line =~ /#{@output_filter_excluded}/ then
         # Capture excluded stuff here
-        next
       elsif line =~ /#{@output_filter_warn_err}/ then
         # Capture warnings / errors here
-        next
       else
         # catch all, this is the main content
-        processed.push(line)
+        process_itemized(line)
       end
     end
-    processed.each do |line|
+
+    @uptodate.each do |line|
       puts line
     end
+    @deleted.each do |line|
+      puts line
+    end
+    @modified.each do |line|
+      puts line
+    end
+  end
+
+  def process_itemized(line)
+    # Break apart the line by spaces (e.g. ".f          9/file9")
+    attrs,item = line.split(/\s+/, 2)
+    #if attrs.split("")[0] == 
   end
 
   def set_output_filter_warn_err
@@ -195,7 +206,7 @@ class Rsync < CliFuncs
     flag_add("--rsync-path=#{path}")
   end
 
-  def flags_base
+  def set_flags_base
     flag_archive
     flag_verbose
     flag_itemized
