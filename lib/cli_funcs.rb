@@ -39,21 +39,24 @@ end
 
 class Rsync < CliFuncs
   attr_accessor :flags_run, :cmd_run, :source, :destination
-  attr_reader :uptodate, :deleted, :modified, :excluded, :basedir, :datadir, :output, :output_processed
+  attr_reader :uptodate, :deleted, :modified, :created, :excluded, :ignored, :basedir, :datadir, :output, :transfer_stats
 
   def initialize
     super
     @uptodate = Array.new
     @deleted = Array.new
     @modified = Array.new
+    @created = Array.new
     @excluded = Array.new
+    @ignored = Array.new
+    @transfer_stats = Hash.new
     @flags_all = Array.new
     @source = String
     @destination = String
-    @output_processed = Array.new
     @output_filter_junk = String
     @output_filter_excluded = String
     @output_filter_warn_err = String
+    @output_filter_stats = String
     set_flags_base
     set_output_filters
   end
@@ -66,32 +69,39 @@ class Rsync < CliFuncs
     set_output_filter_junk
     set_output_filter_excluded
     set_output_filter_warn_err
+    set_output_filter_stats
   end
 
-  def output_processed
-    processed = Array.new
+  def output_process
     @output.each do |line|
       if line =~ /#{@output_filter_junk}/ then
         next
       elsif line =~ /#{@output_filter_excluded}/ then
         # Capture excluded stuff here
+        next
       elsif line =~ /#{@output_filter_warn_err}/ then
         # Capture warnings / errors here
+        next
+      elsif line =~ /#{@output_filter_stats}/
+        # Set hash of stats
+        @transfer_stats[$1] = $2
+        @transfer_stats[$3] = $4
+        @transfer_stats[$5] = $6
+        @transfer_stats[$7] = $8
+        @transfer_stats[$9] = $10
+        @transfer_stats[$11] = $12
+        @transfer_stats[$13] = $14
+        @transfer_stats[$15] = $16
+        @transfer_stats[$17] = $18
+        @transfer_stats[$19] = $20
+        @transfer_stats[$21] = $22
+        next
       else
         # catch all, this is the main content
         process_itemized(line)
       end
     end
-
-    @uptodate.each do |line|
-      puts line
-    end
-    @deleted.each do |line|
-      puts line
-    end
-    @modified.each do |line|
-      puts line
-    end
+    puts @transfer_stats.inspect
   end
 
   def process_itemized(line)
@@ -100,30 +110,84 @@ class Rsync < CliFuncs
     # Break apart itemized attrs on each character 0 = . 1 = f 2 = nil, 3 = nil ...
     attrs_p = attrs.split("")
     # Begin check's for file/directory disposition according to rsync
-    if(attrs_p[0] ||= nil == "." and 
-       attrs_p[1] ||= nil =~ /f|d|L|D/ and 
-       attrs_p[2] ||= nil == nil and
-       attrs_p[3] ||= nil == nil and
-       attrs_p[4] ||= nil == nil and
-       attrs_p[5] ||= nil == nil and
-       attrs_p[6] ||= nil == nil and
-       attrs_p[7] ||= nil == nil and
-       attrs_p[8] ||= nil == nil
+    # If element 0 contains a '.', it means no update has occurred, but may have attribute changes
+    if(attrs_p[0] == ".")
+       # This first check ignores directories which have had their timestamp changed
+       if(
+          attrs_p[1] == "d" and 
+          attrs_p[2] == "." and
+          attrs_p[3] == "." and
+          attrs_p[4] == "t" and
+          attrs_p[5] == "." and
+          attrs_p[6] == "." and
+          attrs_p[7] == "." and
+          attrs_p[8] == "." and
+          attrs_p[9] == "." and
+          attrs_p[10] == "."
+       )
+          puts "#{line.chomp} IGNORED!"
+          @ignored.push(line)
+          #return
+       # checks if nothing has changed with this item
+       elsif(
+          attrs_p[1] =~ /f|d|L|D|S/ and 
+          attrs_p[2] == nil and
+          attrs_p[3] == nil and
+          attrs_p[4] == nil and
+          attrs_p[5] == nil and
+          attrs_p[6] == nil and
+          attrs_p[7] == nil and
+          attrs_p[8] == nil and
+          attrs_p[9] == nil and
+          attrs_p[10] == nil
+       )
+          puts "#{line.chomp} UPTODATE!"
+          @uptodate.push(line)
+       # something must have changed, like an attribute (e.g. ownership or mode)
+       else
+          puts "#{line.chomp} MODIFIED OWNERSHIP OR MODE!"
+          @modified.push(line) 
+       end
+    # checks if item is being deleted
+    elsif(attrs_p[0] =~ /\*|<|>|c|h/)
+      if(
+         attrs_p[1] == "d" and 
+         attrs_p[2] == "e" and
+         attrs_p[3] == "l" and
+         attrs_p[4] == "e" and
+         attrs_p[5] == "t" and
+         attrs_p[6] == "i" and
+         attrs_p[7] == "n" and
+         attrs_p[8] == "g" and
+         attrs_p[9] == nil and
+         attrs_p[10] == nil
       )
-      @uptodate.push(line)
-    elsif(
-       attrs_p[0] ||= nil == "*" and 
-       attrs_p[1] ||= nil == "d" and 
-       attrs_p[2] ||= nil == "e" and
-       attrs_p[3] ||= nil == "l" and
-       attrs_p[4] ||= nil == "e" and
-       attrs_p[5] ||= nil == "t" and
-       attrs_p[6] ||= nil == "i" and
-       attrs_p[7] ||= nil == "n" and
-       attrs_p[8] ||= nil == "g" 
+         puts "#{line.chomp} DELETED!"
+         @deleted.push(line) 
+
+      # checks if item is being created (i.e. new file/dir)
+      elsif(
+        attrs_p[1] =~ /f|d/ and 
+        attrs_p[2] == "+" and
+        attrs_p[3] == "+" and
+        attrs_p[4] == "+" and
+        attrs_p[5] == "+" and
+        attrs_p[6] == "+" and
+        attrs_p[7] == "+" and
+        attrs_p[8] == "+" and
+        attrs_p[9] == "+" and
+        attrs_p[10] == "+"
       )
-      @deleted.push(line) 
+        puts "#{line.chomp} CREATED!"
+        @created.push(line)
+
+      # everthing else is considered a modification
+      else
+        puts "#{line.chomp} MODIFIED CATCH ALL 1!"
+        @modified.push(line) 
+      end
     else
+      puts "#{line.chomp} MODIFIED CATCH ALL 2!"
       @modified.push(line) 
     end
   end
@@ -139,6 +203,25 @@ class Rsync < CliFuncs
     filter.push("cannot delete non-empty directory: .*")
 
     @output_filter_warn_err = filter.join("|")
+  end
+
+  def set_output_filter_stats
+    filter = Array.new
+
+    # These are for rsync stats which are output after the transfer is complete
+    filter.push("(Number of files): (\\d+)")
+    filter.push("(Number of files transferred): (\\d+)")
+    filter.push("(Total file size): (\\d+) bytes")
+    filter.push("(Total transferred file size): (\\d+) bytes")
+    filter.push("(Literal data): (\\d+) bytes")
+    filter.push("(Matched data): (\\d+) bytes")
+    filter.push("(File list size): (\\d+)")
+    filter.push("(File list generation time): (.*) seconds")
+    filter.push("(File list transfer time): (.*) seconds")
+    filter.push("(Total bytes sent): (\\d+)")
+    filter.push("(Total bytes received): (\\d+)")
+
+    @output_filter_stats = filter.join("|")
   end
 
   def set_output_filter_excluded
@@ -181,6 +264,34 @@ class Rsync < CliFuncs
     filter.push("^delta( |-)transmission (dis|en)abled")
     # ignore line
     filter.push("^deleting in \./")
+    # ignore line
+    filter.push("^rsync\\[\\d+\\] \\(sender\\) heap statistics:")
+    # ignore line
+    filter.push("^rsync\\[\\d+\\] \\(server receiver\\) heap statistics:")
+    # ignore line
+    filter.push("^rsync\\[\\d+\\] \\(server generator\\) heap statistics:")
+    # ignore line
+    filter.push("^  arena:")
+    # ignore line
+    filter.push("^  ordblks:")
+    # ignore line
+    filter.push("^  smblks:")
+    # ignore line
+    filter.push("^  hblks:")
+    # ignore line
+    filter.push("^  hblkhd:")
+    # ignore line
+    filter.push("^  allmem:")
+    # ignore line
+    filter.push("^  usmblks:")
+    # ignore line
+    filter.push("^  fsmblks:")
+    # ignore line
+    filter.push("^  uordblks:")
+    # ignore line
+    filter.push("^  fordblks:")
+    # ignore line
+    filter.push("^  keepcost:")
 
     @output_filter_junk = filter.join("|")
   end
@@ -225,6 +336,10 @@ class Rsync < CliFuncs
   def flag_checksum
     flag_add("-c")
   end
+  
+  def flag_stats
+    flag_add("--stats")
+  end
 
   def flag_bwlimit(kbps)
     flag_add("--bwlimit=#{kbps}")
@@ -239,5 +354,6 @@ class Rsync < CliFuncs
     flag_verbose
     flag_itemized
     flag_delete
+    flag_stats
   end
 end
