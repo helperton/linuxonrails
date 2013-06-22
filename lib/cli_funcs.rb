@@ -39,7 +39,7 @@ end
 
 class Rsync < CliFuncs
   attr_accessor :flags_run, :cmd_run, :source, :destination
-  attr_reader :uptodate, :deleted, :modified, :created, :excluded, :ignored, :basedir, :datadir, :output, :transfer_stats
+  attr_reader :uptodate, :deleted, :modified, :created, :excluded, :ignored, :duplicates, :basedir, :datadir, :output, :transfer_stats
 
   def initialize
     super
@@ -49,14 +49,16 @@ class Rsync < CliFuncs
     @created = Array.new
     @excluded = Array.new
     @ignored = Array.new
+    @duplicates = Array.new
     @transfer_stats = Hash.new
     @flags_all = Array.new
-    @source = String
+    @source = Array.new
     @destination = String
     @output_filter_junk = String
     @output_filter_excluded = String
     @output_filter_warn_err = String
     @output_filter_stats = String
+    @output_filter_duplicates = String
     set_flags_base
     set_output_filters
   end
@@ -70,11 +72,16 @@ class Rsync < CliFuncs
     set_output_filter_excluded
     set_output_filter_warn_err
     set_output_filter_stats
+    set_output_filter_duplicates
   end
 
   def output_process
     @output.each do |line|
       if line =~ /#{@output_filter_junk}/ then
+        next
+      elsif line =~ /#{@output_filter_duplicates}/ then
+        puts "#{line.chomp} DUPLICATE!"
+        @duplicates.push(line)
         next
       elsif line =~ /#{@output_filter_excluded}/ then
         # Capture excluded stuff here
@@ -148,8 +155,8 @@ class Rsync < CliFuncs
           puts "#{line.chomp} MODIFIED OWNERSHIP OR MODE!"
           @modified.push(line) 
        end
-    # checks if item is being deleted
     elsif(attrs_p[0] =~ /\*|<|>|c|h/)
+      # checks if item is being deleted
       if(
          attrs_p[1] == "d" and 
          attrs_p[2] == "e" and
@@ -232,6 +239,15 @@ class Rsync < CliFuncs
 
     @output_filter_excluded = filter.join("|")
   end
+    
+  def set_output_filter_duplicates
+    filter = Array.new
+
+    # These are file/directories which are the same in the sources list
+    filter.push("^removing duplicate name .* from file list .*")
+
+    @output_filter_duplicates = filter[0]
+  end
 
   def set_output_filter_junk
     filter = Array.new
@@ -298,6 +314,7 @@ class Rsync < CliFuncs
 
   def cmd_run
     u = CliUtils.new("rsync")
+    #puts [u.utility_path, flags_run, @source, @destination].flatten.inspect
     [u.utility_path, flags_run, @source, @destination].flatten
   end
   
