@@ -52,9 +52,9 @@ describe Rsync do
     r.destination = "#{r.datadir}/rsync/testing/source_changes/"
     r.rsync
     r.output_process
-    r.uptodate.size.should == 20
+    r.uptodate.size.should == 18
     r.deleted.size.should == 5
-    r.modified.size.should == 2
+    r.modified.size.should == 4
     r.created.size.should == 3
     (r.uptodate.size + r.modified.size + r.created.size + r.ignored.size + r.duplicates.size).should == r.transfer_stats["Number of files"].to_i
   end

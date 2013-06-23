@@ -23,13 +23,12 @@ class CliFuncs
   
   def run_and_capture(*args)
     args.flatten!
-    debug = false
     begin
-      puts "Args: #{args}" if debug
+      puts "Args: #{args}" if DEBUG
       stdin, stdout_and_stderr = Open3.popen2e(*args)
       stdout_and_stderr.each do |line|
         @output.push(line)
-        p line if debug
+        p line if DEBUG
       end
     rescue Exception => e
       puts "Tried to run command: #{args[0, args.size]}, received exception: #{e}"
@@ -80,7 +79,7 @@ class Rsync < CliFuncs
       if line =~ /#{@output_filter_junk}/ then
         next
       elsif line =~ /#{@output_filter_duplicates}/ then
-        puts "#{line.chomp} DUPLICATE!"
+        puts "#{line.chomp} DUPLICATE!" if DEBUG
         @duplicates.push(line)
         next
       elsif line =~ /#{@output_filter_excluded}/ then
@@ -108,7 +107,7 @@ class Rsync < CliFuncs
         process_itemized(line)
       end
     end
-    puts @transfer_stats.inspect
+    puts @transfer_stats.inspect if DEBUG
   end
 
   def process_itemized(line)
@@ -132,7 +131,7 @@ class Rsync < CliFuncs
           attrs_p[9] == "." and
           attrs_p[10] == "."
        )
-          puts "#{line.chomp} IGNORED!"
+          puts "#{line.chomp} IGNORED!" if DEBUG
           @ignored.push(line)
           #return
        # checks if nothing has changed with this item
@@ -148,11 +147,11 @@ class Rsync < CliFuncs
           attrs_p[9] == nil and
           attrs_p[10] == nil
        )
-          puts "#{line.chomp} UPTODATE!"
+          puts "#{line.chomp} UPTODATE!" if DEBUG
           @uptodate.push(line)
        # something must have changed, like an attribute (e.g. ownership or mode)
        else
-          puts "#{line.chomp} MODIFIED OWNERSHIP OR MODE!"
+          puts "#{line.chomp} MODIFIED OWNERSHIP OR MODE!" if DEBUG
           @modified.push(line) 
        end
     elsif(attrs_p[0] =~ /\*|<|>|c|h/)
@@ -169,7 +168,7 @@ class Rsync < CliFuncs
          attrs_p[9] == nil and
          attrs_p[10] == nil
       )
-         puts "#{line.chomp} DELETED!"
+         puts "#{line.chomp} DELETED!" if DEBUG
          @deleted.push(line) 
 
       # checks if item is being created (i.e. new file/dir)
@@ -185,16 +184,16 @@ class Rsync < CliFuncs
         attrs_p[9] == "+" and
         attrs_p[10] == "+"
       )
-        puts "#{line.chomp} CREATED!"
+        puts "#{line.chomp} CREATED!" if DEBUG
         @created.push(line)
 
       # everthing else is considered a modification
       else
-        puts "#{line.chomp} MODIFIED CATCH ALL 1!"
+        puts "#{line.chomp} MODIFIED CATCH ALL 1!" if DEBUG
         @modified.push(line) 
       end
     else
-      puts "#{line.chomp} MODIFIED CATCH ALL 2!"
+      puts "#{line.chomp} MODIFIED CATCH ALL 2!" if DEBUG
       @modified.push(line) 
     end
   end
