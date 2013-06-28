@@ -1,24 +1,20 @@
-require 'system_config.rb'
-require 'cli_utils.rb'
+require 'system_config'
+require 'cli_utils'
 
 class CliFuncs
-  attr_accessor :basedir, :datadir
+  attr_accessor :base_dir, :data_dir
   attr_reader :output
 
   def initialize
-    @basedir = String
-    @datadir = String
+    @base_dir = String
+    @data_dir = String
     @output = Array.new
     set_dirs
   end
 
-  def get_env
-    ENV['RSYNCONRAILS_CONFIG'] ||= "development"
-  end
-
   def set_dirs
-    @basedir = SYSTEM_CONFIG[get_env]["basedir"]
-    @datadir = SYSTEM_CONFIG[get_env]["datadir"]
+    @base_dir = SYSTEM_CONFIG["base_dir"]
+    @data_dir = SYSTEM_CONFIG["data_dir"]
   end
   
   def run_and_capture(*args)
@@ -38,7 +34,7 @@ end
 
 class Rsync < CliFuncs
   attr_accessor :flags_run, :cmd_run, :source, :destination
-  attr_reader :uptodate, :deleted, :modified, :created, :excluded, :ignored, :duplicates, :basedir, :datadir, :output, :transfer_stats
+  attr_reader :uptodate, :deleted, :modified, :created, :excluded, :ignored, :duplicates, :base_dir, :data_dir, :output, :transfer_stats
 
   def initialize
     super
@@ -46,18 +42,18 @@ class Rsync < CliFuncs
     @deleted = Array.new
     @modified = Array.new
     @created = Array.new
-    @excluded = Array.new
+    @excluded = Hash.new
     @ignored = Array.new
     @duplicates = Array.new
     @transfer_stats = Hash.new
     @flags_all = Array.new
     @source = Array.new
     @destination = String
-    @output_filter_junk = String
-    @output_filter_excluded = String
-    @output_filter_warn_err = String
-    @output_filter_stats = String
-    @output_filter_duplicates = String
+    @output_filter_junk = Regexp
+    @output_filter_excluded = Regexp
+    @output_filter_warn_err = Regexp
+    @output_filter_stats = Regexp
+    @output_filter_duplicates = Regexp
     set_flags_base
     set_output_filters
   end
@@ -76,19 +72,20 @@ class Rsync < CliFuncs
 
   def output_process
     @output.each do |line|
-      if line =~ /#{@output_filter_junk}/ then
+      if line.match(@output_filter_junk) then
         next
-      elsif line =~ /#{@output_filter_duplicates}/ then
+      elsif line =~ @output_filter_duplicates then
         puts "#{line.chomp} DUPLICATE!" if DEBUG
         @duplicates.push(line)
         next
-      elsif line =~ /#{@output_filter_excluded}/ then
-        # Capture excluded stuff here
+      elsif line =~ @output_filter_excluded then
+        puts "#{line.chomp} EXCLUDED!" if DEBUG
+        @excluded[$3] = $4
         next
-      elsif line =~ /#{@output_filter_warn_err}/ then
+      elsif line =~ @output_filter_warn_err then
         # Capture warnings / errors here
         next
-      elsif line =~ /#{@output_filter_stats}/
+      elsif line =~ @output_filter_stats
         # Set hash of stats
         @transfer_stats[$1] = $2
         @transfer_stats[$3] = $4
@@ -208,7 +205,7 @@ class Rsync < CliFuncs
     filter.push("rsync (error|warning): .*")
     filter.push("cannot delete non-empty directory: .*")
 
-    @output_filter_warn_err = filter.join("|")
+    @output_filter_warn_err = /#{filter.join("|")}/
   end
 
   def set_output_filter_stats
@@ -227,16 +224,12 @@ class Rsync < CliFuncs
     filter.push("(Total bytes sent): (\\d+)")
     filter.push("(Total bytes received): (\\d+)")
 
-    @output_filter_stats = filter.join("|")
+    @output_filter_stats = /#{filter.join("|")}/
   end
 
   def set_output_filter_excluded
-    filter = Array.new
-
     # These are files/directories which have been excluded by a pattern we passed to rsync
-    filter.push("^(\[generator\]) (excluding|protecting) (directory|file) .* because of pattern .*$")
-
-    @output_filter_excluded = filter.join("|")
+    @output_filter_excluded = /^\[generator\] (excluding|protecting) (file|directory) (.*) because of pattern (.*)$/
   end
     
   def set_output_filter_duplicates
@@ -245,7 +238,7 @@ class Rsync < CliFuncs
     # These are file/directories which are the same in the sources list
     filter.push("^removing duplicate name .* from file list .*")
 
-    @output_filter_duplicates = filter[0]
+    @output_filter_duplicates = /#{filter[0]}/
   end
 
   def set_output_filter_junk
@@ -280,6 +273,8 @@ class Rsync < CliFuncs
     # ignore line
     filter.push("^deleting in \./")
     # ignore line
+    filter.push("^opening connection using: ssh")
+    # ignore line
     filter.push("^rsync\\[\\d+\\] \\(sender\\) heap statistics:")
     # ignore line
     filter.push("^rsync\\[\\d+\\] \\(server receiver\\) heap statistics:")
@@ -308,7 +303,7 @@ class Rsync < CliFuncs
     # ignore line
     filter.push("^  keepcost:")
 
-    @output_filter_junk = filter.join("|")
+    @output_filter_junk = /#{filter.join("|")}/
   end
 
   def cmd_run
@@ -363,6 +358,10 @@ class Rsync < CliFuncs
 
   def flag_rsync_path(path)
     flag_add("--rsync-path=#{path}")
+  end
+
+  def flag_exclude(pattern)
+    flag_add("--exclude=#{pattern[1..-1]}")
   end
 
   def set_flags_base

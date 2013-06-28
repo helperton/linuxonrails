@@ -4,17 +4,17 @@ require 'cli_utils.rb'
 describe CliFuncs do
   it "should set environment to development" do
     c = CliFuncs.new
-    c.get_env.should == "development"
+    ENV["RSYNCONRAILS_CONFIG"].should == "development"
   end
 
-  it "should test that basedir is set" do
+  it "should test that base_dir is set" do
     c = CliFuncs.new
-    c.basedir.should_not == nil
+    c.base_dir.should_not == nil
   end
   
-  it "should test that datadir is set" do
+  it "should test that data_dir is set" do
     c = CliFuncs.new
-    c.datadir.should_not == nil
+    c.data_dir.should_not == nil
   end
 
   it "runs a command with no arguments and captures it's output" do

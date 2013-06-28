@@ -1,9 +1,13 @@
 development:
-  basedir: "/home/joshua/Projects/rsynconrails"
-  datadir: "/home/joshua/Projects/rsynconrails/testdata"
+  base_dir: "/home/joshua/Projects/rsynconrails"
+  data_dir: "/home/joshua/Projects/rsynconrails/testdata"
+  hosts_dir: "/home/joshua/Projects/rsynconrails/testdata/hosts"
+  packages_dir: "/home/joshua/Projects/rsynconrails/testdata/packages"
+  debug: false
 
 test:
 
 production:
-  basedir: "/home/joshua/Projects/rsynconrails"
-  datadir: "/home/joshua/Projects/rsynconrails/data"
+  base_dir: "/home/joshua/Projects/rsynconrails"
+  data_dir: "/home/joshua/Projects/rsynconrails/data"
+  debug: false

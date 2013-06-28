@@ -30,9 +30,9 @@ describe Rsync do
     r = Rsync.new
     r.flag_dryrun
     1.upto(9) do |n|
-      r.source.push("#{r.datadir}/rsync/testing/source/pkg#{n}/files/")
+      r.source.push("#{r.data_dir}/rsync/testing/source/pkg#{n}/files/")
     end
-    r.destination = "#{r.datadir}/rsync/testing/source_nochanges/"
+    r.destination = "localhost:#{r.data_dir}/rsync/testing/source_nochanges/"
     r.rsync
     r.output_process
     r.uptodate.size.should == 28
@@ -47,15 +47,20 @@ describe Rsync do
     r = Rsync.new
     r.flag_dryrun
     1.upto(9) do |n|
-      r.source.push("#{r.datadir}/rsync/testing/source/pkg#{n}/files/")
+      r.source.push("#{r.data_dir}/rsync/testing/source/pkg#{n}/files/")
     end
-    r.destination = "#{r.datadir}/rsync/testing/source_changes/"
+    r.destination = "localhost:#{r.data_dir}/rsync/testing/source_changes/"
+    r.flag_exclude("/excluded_file")
+    r.flag_exclude("/3/excluded_file")
+    r.flag_exclude("/3/excluded_file with space in name")
+    r.flag_exclude("/12")
     r.rsync
     r.output_process
-    r.uptodate.size.should == 18
+    r.uptodate.size.should == 17
     r.deleted.size.should == 5
     r.modified.size.should == 4
     r.created.size.should == 3
+    r.excluded.size.should == 4
     (r.uptodate.size + r.modified.size + r.created.size + r.ignored.size + r.duplicates.size).should == r.transfer_stats["Number of files"].to_i
   end
 

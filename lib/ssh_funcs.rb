@@ -9,13 +9,13 @@ class SSHFuncs
     @hostname = hostname
     @output
     @run_cmd
-    @channel
-    open_channel
+    @ssh
+    ssh_channel
   end
 
-  def open_channel
+  def ssh_channel
     begin
-      @channel = Net::SSH.start(@hostname, 'root', :password => "rancor")
+      @ssh = Net::SSH.start(@hostname, 'root')
     rescue Exception => e
       puts "Couldn't establish SSH session with #{@hostname}, received exception: #{e}"
     end
@@ -23,7 +23,7 @@ class SSHFuncs
 
   def run_cmd(cmd)
     # capture all stderr and stdout output from a remote process
-    @output = @channel.exec!(cmd)
-    puts "OUTPUT: #{@output}" if DEBUG
+    @output = @ssh.exec!(cmd)
+    puts "SSH CMD OUTPUT: #{@output}" if DEBUG
   end
 end
