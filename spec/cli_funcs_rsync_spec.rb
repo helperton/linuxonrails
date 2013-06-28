@@ -1,5 +1,6 @@
 require 'spec_helper.rb'
 require 'cli_funcs.rb'
+require 'ssh_funcs.rb'
 
 describe Rsync do
 
@@ -63,5 +64,28 @@ describe Rsync do
     r.excluded.size.should == 4
     (r.uptodate.size + r.modified.size + r.created.size + r.ignored.size + r.duplicates.size).should == r.transfer_stats["Number of files"].to_i
   end
+
+  it "should verify that rsync source ordering is working" do
+    # In the test setup, we have 4 directories, number 2 though 5
+    # By passing in directory 2 first, it should win over other directories
+    # which contain the same file name
+    r = Rsync.new
+    1.upto(9) do |n|
+      r.source.push("#{r.data_dir}/rsync/testing/source_ordering/pkg#{n}/files/")
+    end
+    r.destination = "localhost:#{r.data_dir}/rsync/testing/destination_ordering/"
+    r.rsync
+    r.output_process
+    r.uptodate.size.should == 0
+    r.deleted.size.should == 0
+    r.modified.size.should == 0
+    r.created.size.should == 29
+    r.duplicates.size.should == 11
+    (r.uptodate.size + r.deleted.size + r.modified.size + r.created.size + r.ignored.size + r.duplicates.size).should == r.transfer_stats["Number of files"].to_i
+    s = SSHFuncs.new("localhost")
+    s.run_cmd("cat #{r.data_dir}/rsync/testing/destination_ordering/file_contains_win")
+    s.output.chomp.should == "win"
+  end
+
 
 end

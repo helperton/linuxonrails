@@ -54,6 +54,7 @@ class Rsync < CliFuncs
     @output_filter_warn_err = Regexp
     @output_filter_stats = Regexp
     @output_filter_duplicates = Regexp
+    @output_filter_created = Regexp
     set_flags_base
     set_output_filters
   end
@@ -68,24 +69,25 @@ class Rsync < CliFuncs
     set_output_filter_warn_err
     set_output_filter_stats
     set_output_filter_duplicates
+    set_output_filter_created
   end
 
   def output_process
     @output.each do |line|
-      if line.match(@output_filter_junk) then
+      if line.match @output_filter_junk
         next
-      elsif line =~ @output_filter_duplicates then
+      elsif line.match @output_filter_duplicates
         puts "#{line.chomp} DUPLICATE!" if DEBUG
         @duplicates.push(line)
         next
-      elsif line =~ @output_filter_excluded then
+      elsif line.match @output_filter_excluded
         puts "#{line.chomp} EXCLUDED!" if DEBUG
         @excluded[$3] = $4
         next
-      elsif line =~ @output_filter_warn_err then
+      elsif line.match @output_filter_warn_err
         # Capture warnings / errors here
         next
-      elsif line =~ @output_filter_stats
+      elsif line.match @output_filter_stats
         # Set hash of stats
         @transfer_stats[$1] = $2
         @transfer_stats[$3] = $4
@@ -98,6 +100,9 @@ class Rsync < CliFuncs
         @transfer_stats[$17] = $18
         @transfer_stats[$19] = $20
         @transfer_stats[$21] = $22
+        next
+      elsif line.match @output_filter_created
+        #@created.push(line)
         next
       else
         # catch all, this is the main content
@@ -206,6 +211,17 @@ class Rsync < CliFuncs
     filter.push("cannot delete non-empty directory: .*")
 
     @output_filter_warn_err = /#{filter.join("|")}/
+  end
+  
+  def set_output_filter_created
+    filter = Array.new
+
+    # These should be rare, for some reason it doesn't show up in the itemized list
+    # and rsync doesn't count it as a 'created file', it seems like the only time 
+    # this happens is if the destination directory doesn't already exist.
+    filter.push("^created directory .*")
+
+    @output_filter_created = /#{filter[0]}/
   end
 
   def set_output_filter_stats
