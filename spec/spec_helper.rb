@@ -1,4 +1,5 @@
 require 'system_config'
+require 'host_config'
 
 $datadir = SYSTEM_CONFIG["data_dir"]
 
@@ -67,10 +68,15 @@ def setup_ordering(name)
   system("echo 'lose' > #{$datadir}/#{path}/pkg5/files/file_contains_win")
 end
 
+def setup_testhost(hostname)
+  h = HostConfig.new(hostname)
+end
+
 def setup_test_env
   print "Setting up new testing work area..."
   setup_source("source")
   setup_ordering("source_ordering")
+  setup_testhost("hostname.domain.tld")
   # Sleep for 1.1 seconds ensures that the modify timestamp on the stuff which gets changed by 'setup_changes'
   # will be at least 1.1 seconds different than the source otherwise, rsync may not count it as being different
   # because of the 'quick check' we do by default with rsync.

@@ -218,7 +218,7 @@ class Rsync < CliFuncs
 
     # These should be rare, for some reason it doesn't show up in the itemized list
     # and rsync doesn't count it as a 'created file', it seems like the only time 
-    # this happens is if the destination directory doesn't already exist.
+    # this happens is if the destination root directory doesn't already exist.
     filter.push("^created directory .*")
 
     @output_filter_created = /#{filter[0]}/
