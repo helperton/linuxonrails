@@ -68,15 +68,33 @@ def setup_ordering(name)
   system("echo 'lose' > #{$datadir}/#{path}/pkg5/files/file_contains_win")
 end
 
-def setup_testhost(hostname)
-  h = HostConfig.new(hostname)
+def setup_testhost
+  system("mkdir -p #{$datadir}/hosts/already.exists/hostname/overrides")
+  File::open("#{$datadir}/hosts/already.exists/hostname/host.yml", "w") do |f|
+    f.puts("
+config:
+  package_base: test_dist
+  release_tag: current
+  rsync_path:
+  ssh_port:
+  session_mode:
+include:
+  # - section/packagename
+exclude:
+  # - /somefile
+exclude_backup:
+  # - /somefile
+execute:
+  # - some arbitrary command
+    ")
+  end
 end
 
 def setup_test_env
   print "Setting up new testing work area..."
   setup_source("source")
   setup_ordering("source_ordering")
-  setup_testhost("hostname.domain.tld")
+  setup_testhost
   # Sleep for 1.1 seconds ensures that the modify timestamp on the stuff which gets changed by 'setup_changes'
   # will be at least 1.1 seconds different than the source otherwise, rsync may not count it as being different
   # because of the 'quick check' we do by default with rsync.
