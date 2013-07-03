@@ -1,7 +1,7 @@
 require 'system_config'
 require 'find'
 
-class PackageConfig
+class Package
   attr_accessor :package, :package_yml, :package_base, :package_release_tag, :package_dir
   attr_reader :packages_dir
 
@@ -55,7 +55,7 @@ class PackageConfig
         end
       end
     rescue Exception => e
-      puts "Tried to load #{@package_yml} during 'PackageConfig.yml_valid?', received exception: #{e}"
+      puts "Tried to load #{@package_yml} during 'Package.yml_valid?', received exception: #{e}"
     end
   end
 

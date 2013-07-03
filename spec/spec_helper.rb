@@ -1,5 +1,4 @@
 require 'system_config'
-require 'host_config'
 
 $datadir = SYSTEM_CONFIG["data_dir"]
 

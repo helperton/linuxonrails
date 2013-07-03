@@ -1,5 +1,5 @@
 require 'spec_helper.rb'
-require 'cli_funcs.rb'
+require 'cli_funcs_rsync.rb'
 require 'ssh_funcs.rb'
 
 describe Rsync do

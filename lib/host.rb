@@ -1,7 +1,7 @@
 require 'system_config'
 require 'find'
 
-class HostConfig
+class Host
   attr_accessor :host, :domain, :host_yml, :autocreate
   attr_reader :hosts_dir, :host_dir, :found_host, :host_yml_values
 
@@ -58,7 +58,7 @@ class HostConfig
           end
         end
     rescue Exception => e
-      puts "Tried to find host: #{@hostname} in #{@hosts_dir} during HostConfig.find_host, received exception #{e}"
+      puts "Tried to find host: #{@hostname} in #{@hosts_dir} during Host.find_host, received exception #{e}"
       exit 1
     end
   end
@@ -79,11 +79,11 @@ class HostConfig
       if host_yml?
         return true
       else
-        puts "Host yml isn't valid"
+        puts "Error: @host_yml: #{@host_yml} isn't valid!"
         return false
       end
     else
-      puts "Host directory isn't valid."
+      puts "Error: @host_dir: #{@host_dir} does not exist!"
       return false
     end
   end
@@ -116,7 +116,7 @@ class HostConfig
       f.puts "  # - some arbitrary command"
       f.close
     rescue Exception => e
-      puts "Tried to open #{@host_yml} during 'HostConfig.prepare_host_yml', received exception: #{e}"
+      puts "Tried to open #{@host_yml} during 'Host.prepare_host_yml', received exception: #{e}"
       false
     end
   end
@@ -145,7 +145,7 @@ class HostConfig
         end
       end
     rescue Exception => e
-      puts "Tried to load #{@host_yml} during 'HostConfig.yml_valid?', received exception: #{e}"
+      puts "Tried to load #{@host_yml} during 'Host.yml_valid?', received exception: #{e}"
     end
   end
 
@@ -177,7 +177,7 @@ class HostConfig
       FileUtils.mkdir_p "#{@host_dir}/overrides"
       true
     rescue Exception => e
-      puts "Tried to create #{@host_dir} during 'HostConfig.prepare_host_dir', received exception: #{e}"
+      puts "Tried to create #{@host_dir} during 'Host.prepare_host_dir', received exception: #{e}"
       false
     end
   end
@@ -187,7 +187,7 @@ class HostConfig
       FileUtils.mkdir_p @hosts_dir
       true
     rescue Exception => e
-      puts "Tried to create #{@hosts_dir} during 'HostConfig.prepare_hosts_dir', received exception: #{e}"
+      puts "Tried to create #{@hosts_dir} during 'Host.prepare_hosts_dir', received exception: #{e}"
       false
     end
   end
