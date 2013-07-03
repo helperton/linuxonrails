@@ -90,11 +90,32 @@ execute:
   end
 end
 
+def setup_testpackage
+  path = "#{$datadir}/packages/test_dist/section1/package1"
+  system("mkdir -p #{path}/1.0/files")
+  system("ln -s #{path}/1.0 #{path}/current")
+  File::open("#{path}/1.0/package.yml", "w") do |f|
+    f.puts("
+rank:
+include:
+  # - section/packagename
+exclude:
+  # - /somefile
+exclude_backup:
+  # - /somefile
+execute:
+  # - some arbitrary command
+    ")
+  end
+end
+
+
 def setup_test_env
   print "Setting up new testing work area..."
   setup_source("source")
   setup_ordering("source_ordering")
   setup_testhost
+  setup_testpackage
   # Sleep for 1.1 seconds ensures that the modify timestamp on the stuff which gets changed by 'setup_changes'
   # will be at least 1.1 seconds different than the source otherwise, rsync may not count it as being different
   # because of the 'quick check' we do by default with rsync.

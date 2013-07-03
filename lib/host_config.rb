@@ -3,7 +3,7 @@ require 'find'
 
 class HostConfig
   attr_accessor :host, :domain, :host_yml, :autocreate
-  attr_reader :hosts_dir, :host_dir, :found_host
+  attr_reader :hosts_dir, :host_dir, :found_host, :host_yml_values
 
   def initialize(hostname="")
     @autocreate = false
@@ -13,18 +13,11 @@ class HostConfig
     @host_dir = ""
     @host_yml = ""
     @found_host = ""
-    @host_yml_config = Hash.new
-    @host_yml_include = Array.new
-    @host_yml_exclude = Array.new
-    @host_yml_exclude_backup = Array.new
+    @host_yml_values = Hash.new
     
     @hosts_dir = SYSTEM_CONFIG['hosts_dir']
     prepare_hosts_dir
-
     set_hostname_domain
-
-    # If found, will set @host_dir and @host_yml, else calls prepare_host
-    #find_host(hostname)
   end
 
   def set_hostname_domain
@@ -40,6 +33,7 @@ class HostConfig
   def find_host
     begin
         Find.find(@hosts_dir) do |path|
+          # These are the 3 things which define a 'host' in the system, 2 if there's no domain
           if path =~ /#{@domain}/ and path =~ /#{@host}$/ and File.directory? "#{path}/overrides"
             @host_dir = path  
             @host_yml = "#{@host_dir}/host.yml"
@@ -55,11 +49,14 @@ class HostConfig
               # This path did have a domain component
               @found_host = "#{path.split('/')[-2]}/#{path.split('/')[-1]}"
             end
-            return true
+            # This should set @host_yml_values
+            unless host_valid?
+              return false
+            end
           else
             prepare_host
           end
-        end 
+        end
     rescue Exception => e
       puts "Tried to find host: #{@hostname} in #{@hosts_dir} during HostConfig.find_host, received exception #{e}"
       exit 1
@@ -70,6 +67,7 @@ class HostConfig
     if @autocreate
       @host_dir = "#{@hosts_dir}/#{@domain}/#{@host}"
       @host_yml = "#{@host_dir}/host.yml"
+      # This should set @host_yml_values
       unless host_valid? 
         return false 
       end
@@ -125,13 +123,13 @@ class HostConfig
 
   def yml_valid?
     begin
-      host_yml = YAML.load_file(@host_yml)
+      @host_yml_values = YAML.load_file(@host_yml)
       
       valid_keys = ['config','include','exclude','exclude_backup','execute']
       config_valid_subkeys = ['package_base','release_tag','rsync_path','ssh_port','session_mode']
       
       # Begin check for basic elements
-      host_yml.each_pair do |key,val|
+      @host_yml_values.each_pair do |key,val|
         if key == 'config' and val.class == Hash
           val.each_pair do |skey,sval|
             unless config_valid_subkeys.include? skey

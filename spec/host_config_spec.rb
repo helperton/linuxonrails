@@ -74,11 +74,18 @@ describe HostConfig do
     c.found_host.should == ""
   end
 
-
-  #it "has a package base" do
-  #  c = HostConfig.new("hostname.domain")
-  #  c.packbase = SYSTEM_CONFIG["packbase"]
-  #  c.packbase.should == ""
-  #end
+  it "should read and verify values from host.yml" do
+    c = HostConfig.new("hostname.already.exists")
+    c.find_host
+    c.host_yml_values["config"]["package_base"].should == "test_dist"
+    c.host_yml_values["config"]["release_tag"].should == "current"
+    c.host_yml_values["config"]["rsync_path"].should == nil
+    c.host_yml_values["config"]["ssh_port"].should == nil
+    c.host_yml_values["config"]["session_mode"].should == nil
+    c.host_yml_values["include"].should == nil
+    c.host_yml_values["exclude"].should == nil
+    c.host_yml_values["exclude_backup"].should == nil
+    c.host_yml_values["execute"].should == nil
+  end
 
 end
