@@ -3,6 +3,7 @@ development:
   data_dir: "/home/joshua/Projects/rsynconrails/testdata"
   hosts_dir: "/home/joshua/Projects/rsynconrails/testdata/hosts"
   packages_dir: "/home/joshua/Projects/rsynconrails/testdata/packages"
+  transforms_dir: "/home/joshua/Projects/rsynconrails/testdata/transforms"
   debug: false
 
 test:

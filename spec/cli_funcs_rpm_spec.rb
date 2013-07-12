@@ -55,12 +55,34 @@ describe Rpm do
     r = Rpm.new
     r.rpm_file = "testfiles/libcom_err-1.41.12-14.el6_4.2.x86_64.rpm"
     r.set_provides
-    puts r.output
     r.provides.should have_key "libcom_err.so.2()(64bit)"
     r.provides.should have_key "libcom_err"
     r.provides["libcom_err"].should == "1.41.12-14.el6_4.2"
     r.provides.should have_key "libcom_err(x86-64)"
     r.provides["libcom_err(x86-64)"].should == "1.41.12-14.el6_4.2"
+  end
+  
+  it "should query a package for it's file list information" do
+    r = Rpm.new
+    r.rpm_file = "testfiles/libcom_err-1.41.12-14.el6_4.2.x86_64.rpm"
+    r.set_filelist
+    r.filelist.should == ['/lib64/libcom_err.so.2', '/lib64/libcom_err.so.2.1', '/usr/share/doc/libcom_err-1.41.12', '/usr/share/doc/libcom_err-1.41.12/COPYING']
+  end
+  
+  it "should query a package for it's install scripts" do
+    r = Rpm.new
+    r.rpm_file = "testfiles/postfix-2.6.6-2.2.el6_1.x86_64.rpm"
+    r.set_scripts
+    r.scripts["preinstall"].should match /# Add user and groups if necessary/
+    r.scripts["postinstall"].should match /--slave \/usr\/share\/man\/man5\/aliases.5.gz mta-aliasesman/
+    r.scripts["preuninstall"].should match /\/sbin\/chkconfig --del postfix/
+    r.scripts["postuninstall"].should match /\/sbin\/service postfix condrestart/
+  end
+
+  it "should extract rpm content into specified directory" do
+    r = Rpm.new
+    r.rpm_file = "testfiles/postfix-2.6.6-2.2.el6_1.x86_64.rpm"
+    r.do_extract
   end
 
 end

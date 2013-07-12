@@ -3,33 +3,55 @@ require 'cli_funcs'
 
 class Rpm < CliFuncs
   attr_accessor :rpm_file
-  attr_reader :control, :dependencies, :provides
+  attr_reader :control, :dependencies, :provides, :filelist, :scripts
 
   def initialize
     super
     @utility = "rpm"
     @rpm_file = ""
     @destination = ""
+    @extracted = false
     @flags_all = Array.new
     @control = Hash.new
     @output_filter_control = Array.new
     @dependencies = Hash.new
     @provides = Hash.new
+    @filelist = Array.new
+    @scripts = Hash.new
   end
 
   def rpm
     run_and_capture(cmd_run)
   end
 
+  def extracted?
+    @extracted
+  end
+
   def set_info
     set_control
     set_dependencies
+    set_provides
+    set_filelist
+    set_scripts
+  end
+
+  def set_scripts
+    flags_query_package_scripts
+    rpm
+    output_process_scripts
   end
   
   def set_provides
     flags_query_package_provides
     rpm
     output_process_provides
+  end
+  
+  def set_filelist
+    flags_query_package_filelist
+    rpm
+    output_process_filelist
   end
 
   def set_dependencies
@@ -43,6 +65,24 @@ class Rpm < CliFuncs
     flags_query_package_control
     rpm
     output_process_control
+  end
+  
+  def output_process_scripts
+    script = ""
+
+    @output.each do |line|
+      next if line.length == 0
+      if line =~ /^(\w+)\sscriptlet\s/
+        script = $1
+        puts "SCRIPT: #{script}" if DEBUG
+        next
+      end
+      if(@scripts[script] == nil)
+        @scripts[script] = line
+      else
+        @scripts[script] << line
+      end
+    end
   end
 
   def output_process_control
@@ -70,11 +110,16 @@ class Rpm < CliFuncs
       end
     end
   end
+
+  def output_process_filelist
+    @output.each do |line|
+      @filelist.push(line.chomp)
+    end
+  end
   
   def output_process_provides
     @output.each do |line|
       pkg,ver = line.strip.chomp.split(" = ", 2)
-      puts "PKG: #{pkg} VER: #{ver}"
       if(ver == nil)
         @provides[pkg] = nil
       else
@@ -132,6 +177,16 @@ class Rpm < CliFuncs
   def flags_query_package_provides
     flag_add("-qp")
     flag_add("--provides")
+  end
+  
+  def flags_query_package_filelist
+    flag_add("-qp")
+    flag_add("--list")
+  end
+  
+  def flags_query_package_scripts
+    flag_add("-qp")
+    flag_add("--scripts")
   end
   
   def clear_flags
