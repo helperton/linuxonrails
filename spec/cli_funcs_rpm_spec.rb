@@ -82,6 +82,7 @@ describe Rpm do
   it "should extract rpm content into specified directory" do
     r = Rpm.new
     r.rpm_file = "testfiles/postfix-2.6.6-2.2.el6_1.x86_64.rpm"
+    r.set_info
     r.do_extract
   end
 

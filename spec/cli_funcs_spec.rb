@@ -20,6 +20,7 @@ describe CliFuncs do
   it "runs a command with no arguments and captures it's output" do
     u = CliUtils.new("rsync")
     f = CliFuncs.new
+    f.ignore_bad_exit = true
     f.run_and_capture(u.utility_path)
     f.output[-1].should =~ /rsync error: syntax or usage error/
   end

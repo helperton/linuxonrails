@@ -1,17 +1,21 @@
 require 'system_config'
 require 'cli_funcs'
+require 'cli_funcs_rpm2cpio'
+require 'cli_funcs_cpio'
 
 class Rpm < CliFuncs
-  attr_accessor :rpm_file
-  attr_reader :control, :dependencies, :provides, :filelist, :scripts
+  attr_accessor :rpm_file, :flags_all, :extract_dir
+  attr_reader :control, :dependencies, :provides, :filelist, :scripts, :fpp
 
   def initialize
     super
-    @utility = "rpm"
+    @utility = CliUtils.new("rpm").utility_path
+    @packages_dir = SYSTEM_CONFIG["packages_dir"]
+    @default_dist = SYSTEM_CONFIG["default_dist"]
+    @fpp = ""
     @rpm_file = ""
-    @destination = ""
-    @extracted = false
-    @flags_all = Array.new
+    @extract_dir = ""
+    @final = Array.new
     @control = Hash.new
     @output_filter_control = Array.new
     @dependencies = Hash.new
@@ -24,8 +28,84 @@ class Rpm < CliFuncs
     run_and_capture(cmd_run)
   end
 
-  def extracted?
-    @extracted
+  def rpm2cpio
+    r = Rpm2Cpio.new
+    r.rpm_file = @rpm_file
+    r.rpm2cpio
+    c = Cpio.new
+    c.cpio_data = r.output
+    c.extract_dir = "#{@fpp}/files"
+    c.cpio
+  end
+
+  def do_extract
+    prepare_package_dir
+    extract_package
+    write_info
+  end
+
+  def extract_package
+    # We have to copy the package to the files directory before we can run the rpm2cpio command
+    begin
+      FileUtils.cp(@rpm_file, "#{@fpp}/files")
+    rescue Exception => e
+      puts "Tried to copy #{@rpm_file} to #{@fpp}/files during Rpm.extract_package, received exception: #{e}"
+    end
+
+    # This should fill up @output with the archive content
+    rpm2cpio
+
+    # Move the rpm to the redhat directory for safe keeping
+    begin
+      FileUtils.mv("#{@fpp}/files/#{@rpm_file.split("/")[-1]}","#{@fpp}/redhat")
+    rescue Exception => e
+      puts "Tried to move #{@fpp}/files/#{@rpm_file.split("/")[-1]} to #{@fpp}/redhat during Rpm.extract_package, received exception: #{e}"
+    end
+
+  end
+
+  def write_info
+    write_control
+    write_scripts
+  end
+
+  def write_control
+    begin
+      f = open("#{@fpp}/redhat/info", 'w+')
+      @control.each_pair do |k,v|
+        f.puts "#{k}: #{v}"
+      end
+      f.close
+    rescue Exception => e
+      puts "Tried to open file #{@fpp}/redhat/#{k} for writing during 'Rpm.write_control', received exception: #{e}"
+    end
+  end
+  
+  def write_scripts
+    @scripts.each_pair do |k,v|
+      #puts "KEY: #{k} VAL: #{v}"
+      f = open("#{@fpp}/redhat/#{k}", 'w+')
+      f.print v
+      f.close
+    end
+  end
+
+  def prepare_package_dir
+    group = @control["Group"].gsub(" ","_")
+    name = @control["Name"]
+    version = "#{@control["Version"]}-#{@control["Release"]}"
+    arch = @rpm_file.split(".")[-2]
+    @fpp = "#{@packages_dir}/#{@default_dist}/#{group}/#{name}.#{arch}/#{version}"
+    begin
+      FileUtils.mkdir_p "#{@fpp}/files"
+    rescue Exception => e
+      puts "Tried to create #{@fpp}/files during 'Rpm.prepare_package_dir', received exception: #{e}"
+    end
+    begin
+      FileUtils.mkdir_p "#{@fpp}/redhat"
+    rescue Exception => e
+      puts "Tried to create #{@fpp}/redhat during 'Rpm.prepare_package_dir', received exception: #{e}"
+    end
   end
 
   def set_info
@@ -40,24 +120,28 @@ class Rpm < CliFuncs
     flags_query_package_scripts
     rpm
     output_process_scripts
+    clear_values
   end
   
   def set_provides
     flags_query_package_provides
     rpm
     output_process_provides
+    clear_values
   end
   
   def set_filelist
     flags_query_package_filelist
     rpm
     output_process_filelist
+    clear_values
   end
 
   def set_dependencies
     flags_query_package_dependencies
     rpm
     output_process_dependencies
+    clear_values
   end
 
   def set_control
@@ -65,6 +149,7 @@ class Rpm < CliFuncs
     flags_query_package_control
     rpm
     output_process_control
+    clear_values
   end
   
   def output_process_scripts
@@ -154,18 +239,10 @@ class Rpm < CliFuncs
 
   def cmd_run
     u = CliUtils.new(@utility)
-    puts [u.utility_path, flags_run, @rpm_file, @destination].flatten.inspect if DEBUG
-    [u.utility_path, flags_run, @rpm_file, @destination].flatten
+    puts [u.utility_path, flags_run, @rpm_file, @final].flatten.inspect if DEBUG
+    [u.utility_path, flags_run, @rpm_file, @final].flatten
   end
   
-  def flags_run
-    @flags_all
-  end
-
-  def flag_add(flag)
-    @flags_all.push(flag) unless flag == nil
-  end
-
   def flags_query_package_control
     flag_add("-qpi")
   end
@@ -187,9 +264,5 @@ class Rpm < CliFuncs
   def flags_query_package_scripts
     flag_add("-qp")
     flag_add("--scripts")
-  end
-  
-  def clear_flags
-    @flags_all = Array.new
   end
 end

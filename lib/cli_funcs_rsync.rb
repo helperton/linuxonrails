@@ -2,12 +2,12 @@ require 'system_config'
 require 'cli_funcs'
 
 class Rsync < CliFuncs
-  attr_accessor :flags_run, :cmd_run, :source, :destination
+  attr_accessor :flags_all, :cmd_run, :source, :destination
   attr_reader :uptodate, :deleted, :modified, :created, :excluded, :ignored, :duplicates, :base_dir, :data_dir, :output, :transfer_stats
 
   def initialize
     super
-    @utility = "rsync"
+    @utility = CliUtils.new("rsync").utility_path
     @uptodate = Array.new
     @deleted = Array.new
     @modified = Array.new
@@ -16,7 +16,6 @@ class Rsync < CliFuncs
     @ignored = Array.new
     @duplicates = Array.new
     @transfer_stats = Hash.new
-    @flags_all = Array.new
     @source = Array.new
     @destination = String
     @output_filter_junk = Regexp
@@ -298,14 +297,6 @@ class Rsync < CliFuncs
     [u.utility_path, flags_run, @source, @destination].flatten
   end
   
-  def flags_run
-    @flags_all
-  end
-
-  def flag_add(flag)
-    @flags_all.push(flag) unless flag == nil
-  end
-
   def flag_delete
     flag_add("--delete")
   end
