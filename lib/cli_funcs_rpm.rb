@@ -15,7 +15,7 @@ class Rpm < CliFuncs
     @fpp = ""
     @rpm_file = ""
     @extract_dir = ""
-    @final = Array.new
+    @final_args = Array.new
     @control = Hash.new
     @output_filter_control = Array.new
     @dependencies = Hash.new
@@ -67,6 +67,45 @@ class Rpm < CliFuncs
   def write_info
     write_control
     write_scripts
+    write_filelist
+    write_provides
+    write_dependencies
+  end
+  
+  def write_filelist
+    begin
+      f = open("#{@fpp}/redhat/filelist", 'w+')
+      @filelist.each do |file|
+        f.puts file
+      end
+      f.close
+    rescue Exception => e
+      puts "Tried to open file #{@fpp}/redhat/filelist for writing during 'Rpm.write_filelist', received exception: #{e}"
+    end
+  end
+  
+  def write_dependencies
+    begin
+      f = open("#{@fpp}/redhat/dependencies", 'w+')
+      @dependencies.each_pair do |k,v|
+        f.puts "#{k} #{v}"
+      end
+      f.close
+    rescue Exception => e
+      puts "Tried to open file #{@fpp}/redhat/dependencies for writing during 'Rpm.write_dependencies', received exception: #{e}"
+    end
+  end
+  
+  def write_provides
+    begin
+      f = open("#{@fpp}/redhat/provides", 'w+')
+      @provides.each_pair do |k,v|
+        f.puts "#{k} #{v}"
+      end
+      f.close
+    rescue Exception => e
+      puts "Tried to open file #{@fpp}/redhat/provides for writing during 'Rpm.write_provides', received exception: #{e}"
+    end
   end
 
   def write_control
@@ -239,8 +278,8 @@ class Rpm < CliFuncs
 
   def cmd_run
     u = CliUtils.new(@utility)
-    puts [u.utility_path, flags_run, @rpm_file, @final].flatten.inspect if DEBUG
-    [u.utility_path, flags_run, @rpm_file, @final].flatten
+    puts [u.utility_path, flags_run, @rpm_file, @final_args].flatten.inspect if DEBUG
+    [u.utility_path, flags_run, @rpm_file, @final_args].flatten
   end
   
   def flags_query_package_control
