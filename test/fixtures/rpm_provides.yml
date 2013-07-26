@@ -1,0 +1,9 @@
+# Read about fixtures at http://api.rubyonrails.org/classes/ActiveRecord/Fixtures.html
+
+one:
+  dependency: MyString
+  providedby: MyString
+
+two:
+  dependency: MyString
+  providedby: MyString
