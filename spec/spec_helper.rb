@@ -121,6 +121,11 @@ def setup_test_env
   sleep 1.1
   setup_changes("source_changes")
   puts "done."
+  print "Recreating DB..."
+  system("rake db:drop")
+  system("rake db:create")
+  system("rake db:migrate")
+  puts "done."
 end
 
 clean_up

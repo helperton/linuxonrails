@@ -3,6 +3,7 @@ class CreateRpmProvides < ActiveRecord::Migration
     create_table :rpm_provides do |t|
       t.string :dependency
       t.string :providedby
+      t.string :version
 
       t.timestamps
     end

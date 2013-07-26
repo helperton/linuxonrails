@@ -84,6 +84,13 @@ describe Rpm do
     r.rpm_file = "testfiles/postfix-2.6.6-2.2.el6_1.x86_64.rpm"
     r.set_info
     r.do_extract
+    File.exist?("#{r.fpp}/files/usr/sbin/postsuper").should be_true
   end
+
+  #it "should insert package provides data into db" do
+  #  r = Rpm.new
+  #  r.rpm_file = "testfiles/postfix-2.6.6-2.2.el6_1.x86_64.rpm"
+  #  r.set_info
+  #end
 
 end

@@ -3,6 +3,7 @@ require 'cli_funcs'
 require 'cli_funcs_rpm2cpio'
 require 'cli_funcs_cpio'
 
+
 class Rpm < CliFuncs
   attr_accessor :rpm_file, :flags_all, :extract_dir
   attr_reader :control, :dependencies, :provides, :filelist, :scripts, :fpp
@@ -22,6 +23,9 @@ class Rpm < CliFuncs
     @provides = Hash.new
     @filelist = Array.new
     @scripts = Hash.new
+  end
+
+  class RpmProvides < ActiveRecord::Base
   end
 
   def rpm
@@ -68,8 +72,9 @@ class Rpm < CliFuncs
     write_control
     write_scripts
     write_filelist
-    write_provides
-    write_dependencies
+    write_provides_to_file
+    write_provides_to_db
+    write_dependencies_to_file
   end
   
   def write_filelist
@@ -84,7 +89,7 @@ class Rpm < CliFuncs
     end
   end
   
-  def write_dependencies
+  def write_dependencies_to_file
     begin
       f = open("#{@fpp}/redhat/dependencies", 'w+')
       @dependencies.each_pair do |k,v|
@@ -95,8 +100,18 @@ class Rpm < CliFuncs
       puts "Tried to open file #{@fpp}/redhat/dependencies for writing during 'Rpm.write_dependencies', received exception: #{e}"
     end
   end
+
+  def write_provides_to_db
+    arch = @rpm_file.split(".")[-2]
+    @provides.each_pair do |k,v|
+      RpmProvides.create(:dependency => k, :providedby => "#{@control['Name']}.#{arch}", :version => v)
+    end
+  end
+
+  def get_dependency
+  end
   
-  def write_provides
+  def write_provides_to_file
     begin
       f = open("#{@fpp}/redhat/provides", 'w+')
       @provides.each_pair do |k,v|

@@ -16,6 +16,7 @@ ActiveRecord::Schema.define(version: 20130726213328) do
   create_table "rpm_provides", force: true do |t|
     t.string   "dependency"
     t.string   "providedby"
+    t.string   "version"
     t.datetime "created_at"
     t.datetime "updated_at"
   end
