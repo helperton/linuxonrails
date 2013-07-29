@@ -11,12 +11,23 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20130726213328) do
+ActiveRecord::Schema.define(version: 20130729191942) do
+
+  create_table "rpm_dependencies", force: true do |t|
+    t.string   "dependency"
+    t.string   "version"
+    t.string   "rpm"
+    t.string   "arch"
+    t.datetime "created_at"
+    t.datetime "updated_at"
+  end
 
   create_table "rpm_provides", force: true do |t|
-    t.string   "dependency"
-    t.string   "providedby"
+    t.string   "provides"
     t.string   "version"
+    t.string   "providedby"
+    t.string   "arch"
+    t.string   "rpm"
     t.datetime "created_at"
     t.datetime "updated_at"
   end

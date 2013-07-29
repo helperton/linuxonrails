@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
   s.name        = 'rsynconrails'
-  s.version     = '0.1.0'
-  s.date        = '2013-07-19'
+  s.version     = '0.1.1'
+  s.date        = '2013-07-29'
   s.summary     = "rsynconrails"
   s.description = "A gem for the rsynconrails app"
   s.authors     = ["Joshua McClintock"]

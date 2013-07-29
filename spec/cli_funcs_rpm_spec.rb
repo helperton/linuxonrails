@@ -81,16 +81,28 @@ describe Rpm do
 
   it "should extract rpm content into specified directory" do
     r = Rpm.new
+
     r.rpm_file = "testfiles/postfix-2.6.6-2.2.el6_1.x86_64.rpm"
     r.set_info
     r.do_extract
     File.exist?("#{r.fpp}/files/usr/sbin/postsuper").should be_true
+
+    r.rpm_file = "testfiles/libcom_err-1.41.12-14.el6_4.2.x86_64.rpm"
+    r.set_info
+    r.do_extract
+    File.exist?("#{r.fpp}/files/lib64/libcom_err.so.2.1").should be_true
   end
 
-  #it "should insert package provides data into db" do
-  #  r = Rpm.new
-  #  r.rpm_file = "testfiles/postfix-2.6.6-2.2.el6_1.x86_64.rpm"
-  #  r.set_info
-  #end
+  it "should verify that provides and dependency data was written to DB" do
+    provides = Rpm::RpmProvides.where("rpm = 'postfix-2.6.6-2.2.el6_1.x86_64.rpm'").first
+    provides.provides.should == "/etc/pam.d/smtp"
+    dependency = Rpm::RpmDependencies.where("rpm = 'postfix-2.6.6-2.2.el6_1.x86_64.rpm'").first
+    dependency.dependency.should == "/bin/bash"
+
+    provides = Rpm::RpmProvides.where("rpm = 'libcom_err-1.41.12-14.el6_4.2.x86_64.rpm'").first
+    provides.provides.should == "libcom_err.so.2()(64bit)"
+    dependency = Rpm::RpmDependencies.where("rpm = 'libcom_err-1.41.12-14.el6_4.2.x86_64.rpm'").first
+    dependency.dependency.should == "/sbin/ldconfig"
+  end
 
 end

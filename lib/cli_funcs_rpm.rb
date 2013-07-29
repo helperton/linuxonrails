@@ -10,11 +10,11 @@ class Rpm < CliFuncs
 
   def initialize
     super
-    @utility = CliUtils.new("rpm").utility_path
-    @packages_dir = SYSTEM_CONFIG["packages_dir"]
-    @default_dist = SYSTEM_CONFIG["default_dist"]
+    @utility ||= CliUtils.new("rpm").utility_path
+    @packages_dir ||= SYSTEM_CONFIG["packages_dir"]
+    @default_dist ||= SYSTEM_CONFIG["default_dist"]
+    @rpm_file ||= ""
     @fpp = ""
-    @rpm_file = ""
     @extract_dir = ""
     @final_args = Array.new
     @control = Hash.new
@@ -26,6 +26,9 @@ class Rpm < CliFuncs
   end
 
   class RpmProvides < ActiveRecord::Base
+  end
+  
+  class RpmDependencies < ActiveRecord::Base
   end
 
   def rpm
@@ -70,11 +73,12 @@ class Rpm < CliFuncs
 
   def write_info
     write_control
-    write_scripts
+    write_scripts unless @write_scripts == nil
     write_filelist
     write_provides_to_file
     write_provides_to_db
     write_dependencies_to_file
+    write_dependencies_to_db
   end
   
   def write_filelist
@@ -100,11 +104,18 @@ class Rpm < CliFuncs
       puts "Tried to open file #{@fpp}/redhat/dependencies for writing during 'Rpm.write_dependencies', received exception: #{e}"
     end
   end
+  
+  def write_dependencies_to_db
+    arch = @rpm_file.split(".")[-2]
+    @dependencies.each_pair do |k,v|
+      RpmDependencies.create(:dependency => k, :version => v, :rpm => @rpm_file.split("/")[-1], :arch => arch)
+    end
+  end
 
   def write_provides_to_db
     arch = @rpm_file.split(".")[-2]
     @provides.each_pair do |k,v|
-      RpmProvides.create(:dependency => k, :providedby => "#{@control['Name']}.#{arch}", :version => v)
+      RpmProvides.create(:provides => k, :providedby => "#{@control['Name']}.#{arch}", :version => v, :rpm => @rpm_file.split("/")[-1], :arch => arch)
     end
   end
 
@@ -163,6 +174,7 @@ class Rpm < CliFuncs
   end
 
   def set_info
+    initialize
     set_control
     set_dependencies
     set_provides
@@ -171,39 +183,39 @@ class Rpm < CliFuncs
   end
 
   def set_scripts
+    clear_values
     flags_query_package_scripts
     rpm
     output_process_scripts
-    clear_values
   end
   
   def set_provides
+    clear_values
     flags_query_package_provides
     rpm
     output_process_provides
-    clear_values
   end
   
   def set_filelist
+    clear_values
     flags_query_package_filelist
     rpm
     output_process_filelist
-    clear_values
   end
 
   def set_dependencies
+    clear_values
     flags_query_package_dependencies
     rpm
     output_process_dependencies
-    clear_values
   end
 
   def set_control
+    clear_values
     set_output_filter_control
     flags_query_package_control
     rpm
     output_process_control
-    clear_values
   end
   
   def output_process_scripts
