@@ -2,6 +2,7 @@ require 'system_config'
 require 'cli_funcs'
 require 'cli_funcs_rpm2cpio'
 require 'cli_funcs_cpio'
+require 'digest/sha1'
 
 
 class Rpm < CliFuncs
@@ -12,9 +13,10 @@ class Rpm < CliFuncs
     super
     @utility ||= CliUtils.new("rpm").utility_path
     @packages_dir ||= SYSTEM_CONFIG["packages_dir"]
-    @default_dist ||= SYSTEM_CONFIG["default_dist"]
+    @dist ||= SYSTEM_CONFIG["default_dist"]
     @rpm_file ||= ""
     @fpp = ""
+    @rpp = ""
     @extract_dir = ""
     @final_args = Array.new
     @control = Hash.new
@@ -29,6 +31,10 @@ class Rpm < CliFuncs
   end
   
   class RpmDependencies < ActiveRecord::Base
+  end
+  
+  class RpmPackages < ActiveRecord::Base
+    validates_uniqueness_of :package_key
   end
 
   def rpm
@@ -73,12 +79,14 @@ class Rpm < CliFuncs
 
   def write_info
     write_control
+    # Some packages don't have any scripts
     write_scripts unless @write_scripts == nil
     write_filelist
     write_provides_to_file
     write_provides_to_db
     write_dependencies_to_file
     write_dependencies_to_db
+    write_package_to_db
   end
   
   def write_filelist
@@ -104,18 +112,27 @@ class Rpm < CliFuncs
       puts "Tried to open file #{@fpp}/redhat/dependencies for writing during 'Rpm.write_dependencies', received exception: #{e}"
     end
   end
+
+  def unique_package_key
+    Digest::SHA1.hexdigest("#{@dist}#{@rpp}")
+  end
+
+  def write_package_to_db
+    arch = @rpm_file.split(".")[-2]
+    version = @rpm_file.split("-", 2)[1].split(".#{arch}")[0]
+    rpm = @rpm_file.split("/")[-1]
+    RpmPackages.create(:package_key => unique_package_key, :dist => @dist, :rpp => @rpp, :rpm => rpm, :version => version, :arch => arch)
+  end
   
   def write_dependencies_to_db
-    arch = @rpm_file.split(".")[-2]
     @dependencies.each_pair do |k,v|
-      RpmDependencies.create(:dependency => k, :version => v, :rpm => @rpm_file.split("/")[-1], :arch => arch)
+      RpmDependencies.create(:dependency => k, :version => v, :neededby => unique_package_key)
     end
   end
 
   def write_provides_to_db
-    arch = @rpm_file.split(".")[-2]
     @provides.each_pair do |k,v|
-      RpmProvides.create(:provides => k, :providedby => "#{@control['Name']}.#{arch}", :version => v, :rpm => @rpm_file.split("/")[-1], :arch => arch)
+      RpmProvides.create(:provides => k, :providedby => unique_package_key)
     end
   end
 
@@ -160,7 +177,8 @@ class Rpm < CliFuncs
     name = @control["Name"]
     version = "#{@control["Version"]}-#{@control["Release"]}"
     arch = @rpm_file.split(".")[-2]
-    @fpp = "#{@packages_dir}/#{@default_dist}/#{group}/#{name}.#{arch}/#{version}"
+    @fpp = "#{@packages_dir}/#{@dist}/#{group}/#{name}.#{arch}/#{version}"
+    @rpp = "#{group}/#{name}.#{arch}/#{version}"
     begin
       FileUtils.mkdir_p "#{@fpp}/files"
     rescue Exception => e

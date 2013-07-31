@@ -11,25 +11,38 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20130729191942) do
+ActiveRecord::Schema.define(version: 20130729213328) do
 
   create_table "rpm_dependencies", force: true do |t|
     t.string   "dependency"
     t.string   "version"
+    t.string   "neededby"
+    t.datetime "created_at"
+    t.datetime "updated_at"
+  end
+
+  add_index "rpm_dependencies", ["dependency", "version", "neededby"], name: "index_rpm_dependencies_on_dependency_and_version_and_neededby", using: :btree
+
+  create_table "rpm_packages", force: true do |t|
+    t.string   "package_key", null: false
+    t.string   "dist"
+    t.string   "rpp"
     t.string   "rpm"
+    t.string   "version"
     t.string   "arch"
     t.datetime "created_at"
     t.datetime "updated_at"
   end
 
+  add_index "rpm_packages", ["package_key"], name: "index_rpm_packages_on_package_key", unique: true, using: :btree
+
   create_table "rpm_provides", force: true do |t|
     t.string   "provides"
-    t.string   "version"
     t.string   "providedby"
-    t.string   "arch"
-    t.string   "rpm"
     t.datetime "created_at"
     t.datetime "updated_at"
   end
+
+  add_index "rpm_provides", ["provides", "providedby"], name: "index_rpm_provides_on_provides_and_providedby", using: :btree
 
 end

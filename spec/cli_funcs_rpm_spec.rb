@@ -94,14 +94,20 @@ describe Rpm do
   end
 
   it "should verify that provides and dependency data was written to DB" do
-    provides = Rpm::RpmProvides.where("rpm = 'postfix-2.6.6-2.2.el6_1.x86_64.rpm'").first
+    packages = Rpm::RpmPackages.where("rpm = 'postfix-2.6.6-2.2.el6_1.x86_64.rpm'").first 
+
+    provides = Rpm::RpmProvides.where("providedby = '#{packages.package_key}'").first
     provides.provides.should == "/etc/pam.d/smtp"
-    dependency = Rpm::RpmDependencies.where("rpm = 'postfix-2.6.6-2.2.el6_1.x86_64.rpm'").first
+
+    dependency = Rpm::RpmDependencies.where("neededby = '#{packages.package_key}'").first
     dependency.dependency.should == "/bin/bash"
 
-    provides = Rpm::RpmProvides.where("rpm = 'libcom_err-1.41.12-14.el6_4.2.x86_64.rpm'").first
+    packages = Rpm::RpmPackages.where("rpm = 'libcom_err-1.41.12-14.el6_4.2.x86_64.rpm'").first
+
+    provides = Rpm::RpmProvides.where("providedby = '#{packages.package_key}'").first
     provides.provides.should == "libcom_err.so.2()(64bit)"
-    dependency = Rpm::RpmDependencies.where("rpm = 'libcom_err-1.41.12-14.el6_4.2.x86_64.rpm'").first
+
+    dependency = Rpm::RpmDependencies.where("neededby = '#{packages.package_key}'").first
     dependency.dependency.should == "/sbin/ldconfig"
   end
 
