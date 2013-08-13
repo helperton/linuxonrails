@@ -58,7 +58,7 @@ class Host
           end
         end
     rescue Exception => e
-      puts "Tried to find host: #{@hostname} in #{@hosts_dir} during Host.find_host, received exception #{e}"
+      puts "Tried to find host: #{@hostname} in #{@hosts_dir} during #{self.class.name}.#{__method__}, received exception #{e}"
       exit 1
     end
   end
@@ -116,7 +116,7 @@ class Host
       f.puts "  # - some arbitrary command"
       f.close
     rescue Exception => e
-      puts "Tried to open #{@host_yml} during 'Host.prepare_host_yml', received exception: #{e}"
+      puts "Tried to open #{@host_yml} during #{self.class.name}.#{__method__}, received exception: #{e}"
       false
     end
   end
@@ -145,7 +145,7 @@ class Host
         end
       end
     rescue Exception => e
-      puts "Tried to load #{@host_yml} during 'Host.yml_valid?', received exception: #{e}"
+      puts "Tried to load #{@host_yml} #{self.class.name}.#{__method__}, received exception: #{e}"
     end
   end
 
@@ -177,7 +177,7 @@ class Host
       FileUtils.mkdir_p "#{@host_dir}/overrides"
       true
     rescue Exception => e
-      puts "Tried to create #{@host_dir} during 'Host.prepare_host_dir', received exception: #{e}"
+      puts "Tried to create #{@host_dir} during #{self.class.name}.#{__method__}, received exception: #{e}"
       false
     end
   end
@@ -187,7 +187,7 @@ class Host
       FileUtils.mkdir_p @hosts_dir
       true
     rescue Exception => e
-      puts "Tried to create #{@hosts_dir} during 'Host.prepare_hosts_dir', received exception: #{e}"
+      puts "Tried to create #{@hosts_dir} during #{self.class.name}.#{__method__}, received exception: #{e}"
       false
     end
   end

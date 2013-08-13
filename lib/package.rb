@@ -55,7 +55,7 @@ class Package
         end
       end
     rescue Exception => e
-      puts "Tried to load #{@package_yml} during 'Package.yml_valid?', received exception: #{e}"
+      puts "Tried to load #{@package_yml} during #{self.class.name}.#{__method__}, received exception: #{e}"
     end
   end
 

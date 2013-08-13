@@ -24,7 +24,7 @@ class Cpio < CliFuncs
       raise "Cpio data was zero in size, nothing extracted." if @cpio_data.length == 0
       puts [@utility, flags_run, opts].flatten.inspect if DEBUG
     rescue Exception => e
-      puts "Tried to run #{@utility} #{@rpm_file} #{opts.inspect} during Cpio.cpio, received exception: #{e}"
+      puts "Tried to run #{@utility} #{@rpm_file} #{opts.inspect} during #{self.class.name}.#{__method__}, received exception: #{e}"
     end
   end
 

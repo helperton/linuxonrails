@@ -17,6 +17,10 @@ class Rpm < CliFuncs
     @rpm_file ||= ""
     @fpp = ""
     @rpp = ""
+    @group = ""
+    @name = ""
+    @version = ""
+    @arch = ""
     @extract_dir = ""
     @final_args = Array.new
     @control = Hash.new
@@ -37,7 +41,7 @@ class Rpm < CliFuncs
     validates_uniqueness_of :package_key
   end
 
-  def rpm
+  def run
     run_and_capture(cmd_run)
   end
 
@@ -50,19 +54,32 @@ class Rpm < CliFuncs
     c.extract_dir = "#{@fpp}/files"
     c.cpio
   end
-
-  def do_extract
-    prepare_package_dir
-    extract_package
-    write_info
+    
+  def package_exists?
+    (File.exists? "#{@fpp}/files" and 
+    File.exists? "#{@fpp}/redhat/info" and
+    File.exists? "#{@fpp}/redhat/filelist" and 
+    File.exists? "#{@fpp}/redhat/dependencies" and
+    File.exists? "#{@fpp}/redhat/#{@rpm_file.split('/')[-1]}")
   end
 
-  def extract_package
+  def create_package
+    if package_exists?
+      puts "Package exists..."
+    else
+      set_info
+      prepare_package_dir
+      write_info
+      extract
+    end
+  end
+
+  def extract
     # We have to copy the package to the files directory before we can run the rpm2cpio command
     begin
       FileUtils.cp(@rpm_file, "#{@fpp}/files")
     rescue Exception => e
-      puts "Tried to copy #{@rpm_file} to #{@fpp}/files during Rpm.extract_package, received exception: #{e}"
+      puts "Tried to copy #{@rpm_file} to #{@fpp}/files during #{self.class.name}.#{__method__}, received exception: #{e}"
     end
 
     # This should fill up @output with the archive content
@@ -72,7 +89,7 @@ class Rpm < CliFuncs
     begin
       FileUtils.mv("#{@fpp}/files/#{@rpm_file.split("/")[-1]}","#{@fpp}/redhat")
     rescue Exception => e
-      puts "Tried to move #{@fpp}/files/#{@rpm_file.split("/")[-1]} to #{@fpp}/redhat during Rpm.extract_package, received exception: #{e}"
+      puts "Tried to move #{@fpp}/files/#{@rpm_file.split("/")[-1]} to #{@fpp}/redhat during #{self.class.name}.#{__method__}, received exception: #{e}"
     end
 
   end
@@ -91,25 +108,25 @@ class Rpm < CliFuncs
   
   def write_filelist
     begin
-      f = open("#{@fpp}/redhat/filelist", 'w+')
+      f = open("#{@fpp}/redhat/filelist", 'w')
       @filelist.each do |file|
         f.puts file
       end
       f.close
     rescue Exception => e
-      puts "Tried to open file #{@fpp}/redhat/filelist for writing during 'Rpm.write_filelist', received exception: #{e}"
+      puts "Tried to open file #{@fpp}/redhat/filelist for writing during #{self.class.name}.#{__method__}, received exception: #{e}"
     end
   end
   
   def write_dependencies_to_file
     begin
-      f = open("#{@fpp}/redhat/dependencies", 'w+')
+      f = open("#{@fpp}/redhat/dependencies", 'w')
       @dependencies.each_pair do |k,v|
         f.puts "#{k} #{v}"
       end
       f.close
     rescue Exception => e
-      puts "Tried to open file #{@fpp}/redhat/dependencies for writing during 'Rpm.write_dependencies', received exception: #{e}"
+      puts "Tried to open file #{@fpp}/redhat/dependencies for writing during #{self.class.name}.#{__method__}, received exception: #{e}"
     end
   end
 
@@ -118,10 +135,8 @@ class Rpm < CliFuncs
   end
 
   def write_package_to_db
-    arch = @rpm_file.split(".")[-2]
-    version = @rpm_file.split("-", 2)[1].split(".#{arch}")[0]
     rpm = @rpm_file.split("/")[-1]
-    RpmPackages.create(:package_key => unique_package_key, :dist => @dist, :rpp => @rpp, :rpm => rpm, :version => version, :arch => arch)
+    RpmPackages.create(:package_key => unique_package_key, :dist => @dist, :rpp => @rpp, :rpm => rpm, :version => @version, :arch => @arch)
   end
   
   def write_dependencies_to_db
@@ -147,47 +162,50 @@ class Rpm < CliFuncs
       end
       f.close
     rescue Exception => e
-      puts "Tried to open file #{@fpp}/redhat/provides for writing during 'Rpm.write_provides', received exception: #{e}"
+      puts "Tried to open file #{@fpp}/redhat/provides for writing during #{self.class.name}.#{__method__}, received exception: #{e}"
     end
   end
 
   def write_control
     begin
-      f = open("#{@fpp}/redhat/info", 'w+')
+      f = open("#{@fpp}/redhat/info", 'w')
       @control.each_pair do |k,v|
         f.puts "#{k}: #{v}"
       end
       f.close
     rescue Exception => e
-      puts "Tried to open file #{@fpp}/redhat/#{k} for writing during 'Rpm.write_control', received exception: #{e}"
+      puts "Tried to open file #{@fpp}/redhat/info for writing during #{self.class.name}.#{__method__}, received exception: #{e}"
     end
   end
   
   def write_scripts
     @scripts.each_pair do |k,v|
       #puts "KEY: #{k} VAL: #{v}"
-      f = open("#{@fpp}/redhat/#{k}", 'w+')
+      f = open("#{@fpp}/redhat/#{k}", 'w')
       f.print v
       f.close
     end
   end
 
+  def set_pkg_info
+    @group = @control["Group"].gsub(" ","_")
+    @name = @control["Name"]
+    @version = "#{@control["Version"]}-#{@control["Release"]}"
+    @arch = @rpm_file.split("/")[-1].split(".")[-2]
+    @rpp = "#{@group}/#{@name}.#{@arch}/#{@version}"
+    @fpp = "#{@packages_dir}/#{@dist}/#{@rpp}"
+  end
+
   def prepare_package_dir
-    group = @control["Group"].gsub(" ","_")
-    name = @control["Name"]
-    version = "#{@control["Version"]}-#{@control["Release"]}"
-    arch = @rpm_file.split(".")[-2]
-    @fpp = "#{@packages_dir}/#{@dist}/#{group}/#{name}.#{arch}/#{version}"
-    @rpp = "#{group}/#{name}.#{arch}/#{version}"
     begin
-      FileUtils.mkdir_p "#{@fpp}/files"
+      FileUtils.mkdir_p "#{@fpp}/files" unless File.exists? "#{@fpp}/files"
     rescue Exception => e
-      puts "Tried to create #{@fpp}/files during 'Rpm.prepare_package_dir', received exception: #{e}"
+      puts "Tried to create #{@fpp}/files during #{self.class.name}.#{__method__}, received exception: #{e}"
     end
     begin
-      FileUtils.mkdir_p "#{@fpp}/redhat"
+      FileUtils.mkdir_p "#{@fpp}/redhat" unless File.exists? "#{@fpp}/redhat"
     rescue Exception => e
-      puts "Tried to create #{@fpp}/redhat during 'Rpm.prepare_package_dir', received exception: #{e}"
+      puts "Tried to create #{@fpp}/redhat during #{self.class.name}.#{__method__}, received exception: #{e}"
     end
   end
 
@@ -201,39 +219,40 @@ class Rpm < CliFuncs
   end
 
   def set_scripts
-    clear_values
     flags_query_package_scripts
-    rpm
+    run
     output_process_scripts
+    clear_values
   end
   
   def set_provides
-    clear_values
     flags_query_package_provides
-    rpm
+    run
     output_process_provides
+    clear_values
   end
   
   def set_filelist
-    clear_values
     flags_query_package_filelist
-    rpm
+    run
     output_process_filelist
+    clear_values
   end
 
   def set_dependencies
-    clear_values
     flags_query_package_dependencies
-    rpm
+    run
     output_process_dependencies
+    clear_values
   end
 
   def set_control
-    clear_values
     set_output_filter_control
     flags_query_package_control
-    rpm
+    run
     output_process_control
+    set_pkg_info
+    clear_values
   end
   
   def output_process_scripts
@@ -256,6 +275,7 @@ class Rpm < CliFuncs
 
   def output_process_control
     @output.each do |line|
+      puts "#{__FILE__.split("/")[-1]}:#{__LINE__}: #{line}" if DEBUG
       @output_filter_control.each do |pattern|
         if line =~ /#{pattern}/
           if(($1 and $2) and ($3 and $4))

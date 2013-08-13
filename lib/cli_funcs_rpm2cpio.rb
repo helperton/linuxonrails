@@ -22,7 +22,7 @@ class Rpm2Cpio < CliFuncs
       @output, stderr_str, status = Open3.capture3(@utility, @rpm_file, opts)
       puts [@utility, @rpm_file, opts].flatten.inspect if DEBUG
     rescue Exception => e
-      puts "Tried to run #{@utility} #{@rpm_file} #{opts.inspect} during Rpm2Cpio.rpm2cpio, received exception: #{e}"
+      puts "Tried to run #{@utility} #{@rpm_file} #{opts.inspect} during #{self.class.name}.#{__method__}, received exception: #{e}"
     end
   end
 end
