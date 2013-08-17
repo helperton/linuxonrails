@@ -7,7 +7,7 @@ class Rpm2Cpio < CliFuncs
 
   def initialize
     super
-    @output = ""
+    @output
     @utility = CliUtils.new("rpm2cpio").utility_path
     @packages_dir = SYSTEM_CONFIG["packages_dir"]
     @default_dist = SYSTEM_CONFIG["default_dist"]
@@ -16,10 +16,12 @@ class Rpm2Cpio < CliFuncs
 
   def rpm2cpio
     # This should turn capture3 into binary mode just by being set
-    opts = Hash.new
+    opts = { :err => "/dev/null" }
     # Run our command and capture the binary output into @output
     begin
-      @output, stderr_str, status = Open3.capture3(@utility, @rpm_file, opts)
+      IO.popen([@utility, @rpm_file].flatten, mode='r', opts) do |io|
+        @output = io.read
+      end
       puts [@utility, @rpm_file, opts].flatten.inspect if DEBUG
     rescue Exception => e
       puts "Tried to run #{@utility} #{@rpm_file} #{opts.inspect} during #{self.class.name}.#{__method__}, received exception: #{e}"

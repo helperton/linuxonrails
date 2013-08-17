@@ -4,10 +4,9 @@ require 'cli_funcs_rpm2cpio'
 require 'cli_funcs_cpio'
 require 'digest/sha1'
 
-
 class Rpm < CliFuncs
-  attr_accessor :rpm_file, :flags_all, :extract_dir
-  attr_reader :control, :dependencies, :provides, :filelist, :scripts, :fpp
+  attr_accessor :rpm_file, :flags_all, :extract_dir, :dist, :fpp, :rpp
+  attr_reader :control, :dependencies, :provides, :filelist, :scripts, :packages_dir
 
   def initialize
     super
@@ -15,6 +14,7 @@ class Rpm < CliFuncs
     @packages_dir ||= SYSTEM_CONFIG["packages_dir"]
     @dist ||= SYSTEM_CONFIG["default_dist"]
     @rpm_file ||= ""
+    @pp = ""
     @fpp = ""
     @rpp = ""
     @group = ""
@@ -29,53 +29,92 @@ class Rpm < CliFuncs
     @provides = Hash.new
     @filelist = Array.new
     @scripts = Hash.new
+    @cpio = Cpio.new
+    @rpm2cpio = Rpm2Cpio.new
   end
 
-  class RpmProvides < ActiveRecord::Base
-  end
-  
-  class RpmDependencies < ActiveRecord::Base
-  end
-  
-  class RpmPackages < ActiveRecord::Base
-    validates_uniqueness_of :package_key
-  end
+  require 'models/rpm_packages'
+  require 'models/rpm_provides'
+  require 'models/rpm_dependencies'
 
   def run
     run_and_capture(cmd_run)
   end
 
-  def rpm2cpio
-    r = Rpm2Cpio.new
-    r.rpm_file = @rpm_file
-    r.rpm2cpio
-    c = Cpio.new
-    c.cpio_data = r.output
-    c.extract_dir = "#{@fpp}/files"
-    c.cpio
+  def set_cpio_data 
+    @rpm2cpio.rpm_file = @rpm_file
+    @rpm2cpio.rpm2cpio
+    @cpio.cpio_data = @rpm2cpio.output
+  end
+
+  def set_cpio_filelist
+    @cpio.cpio_list
+  end
+
+  def cpio_extract
+    @cpio.extract_dir = "#{@fpp}/files"
+    @cpio.cpio_extract
   end
     
   def package_exists?
-    (File.exists? "#{@fpp}/files" and 
-    File.exists? "#{@fpp}/redhat/info" and
-    File.exists? "#{@fpp}/redhat/filelist" and 
-    File.exists? "#{@fpp}/redhat/dependencies" and
-    File.exists? "#{@fpp}/redhat/#{@rpm_file.split('/')[-1]}")
+    if !File.exists? "#{@fpp}/files"
+      puts "Package missing '#{@fpp}/files' directory" if DEBUG
+      return false
+    elsif !File.exists? "#{@fpp}/redhat/info"
+      puts "Package missing '#{@fpp}/redhat/info'" if DEBUG
+      return false
+    elsif !File.exists? "#{@fpp}/redhat/filelist"
+      puts "Package missing '#{@fpp}/redhat/filelist'" if DEBUG
+      return false
+    elsif !File.exists? "#{@fpp}/redhat/dependencies"
+      puts "Package missing '#{@fpp}/redhat/dependencies'" if DEBUG
+      return false
+    elsif !File.exists? "#{@fpp}/redhat/#{@rpm_file.split('/')[-1]}"
+      puts "Package missing '#{@fpp}/redhat/#{@rpm_file.split('/')[-1]}'" if DEBUG
+      return false
+    elsif package_missing_files?
+      return false
+    else
+      return true
+    end
+  end
+
+  def package_missing_files?
+    return false if @cpio.file_list.size == 0
+    @cpio.file_list.each do |f| f.gsub!("./","")
+      unless file_dir_or_symlink_exists? "#{@fpp}/files/#{f}"
+        puts "Package missing '#{@fpp}/files/#{f}'" if DEBUG
+        return true
+      end
+    end
+    false
+  end
+
+  def file_dir_or_symlink_exists?(path)
+    File.exist?(path) || File.symlink?(path)
+  end
+
+  def preprocess_package
+    print "Pre-Processing file #{@rpm_file}..." if DEBUG
+    set_info
+    write_info_db
   end
 
   def create_package
+    print "Processing file #{@rpm_file}..." if DEBUG
+    set_info
     if package_exists?
-      puts "Package exists..."
+      puts "Package #{@fpp} exists." if DEBUG
     else
-      set_info
       prepare_package_dir
       write_info
       extract
+      puts "package created in #{@fpp}." if DEBUG
     end
   end
 
   def extract
-    # We have to copy the package to the files directory before we can run the rpm2cpio command
+    # We have to copy the package to the files directory before we can run cpio_extract
     begin
       FileUtils.cp(@rpm_file, "#{@fpp}/files")
     rescue Exception => e
@@ -83,7 +122,7 @@ class Rpm < CliFuncs
     end
 
     # This should fill up @output with the archive content
-    rpm2cpio
+    cpio_extract
 
     # Move the rpm to the redhat directory for safe keeping
     begin
@@ -97,11 +136,15 @@ class Rpm < CliFuncs
   def write_info
     write_control
     # Some packages don't have any scripts
-    write_scripts unless @write_scripts == nil
+    write_scripts
     write_filelist
     write_provides_to_file
-    write_provides_to_db
     write_dependencies_to_file
+    write_info_db
+  end
+
+  def write_info_db
+    write_provides_to_db
     write_dependencies_to_db
     write_package_to_db
   end
@@ -134,20 +177,30 @@ class Rpm < CliFuncs
     Digest::SHA1.hexdigest("#{@dist}#{@rpp}")
   end
 
+  def get_rpm_file(dist=@dist, rpp=@rpp)
+    set_fpp
+    "#{@fpp}/redhat/#{Rpm::RpmPackages.where(:package_key => unique_package_key).first.rpm}"
+  end
+
+  def set_fpp
+    @fpp = "#{@packages_dir}/#{@dist}/#{@rpp}"
+    @pp = @fpp.split('/')[0..-2].join('/')
+  end
+
   def write_package_to_db
     rpm = @rpm_file.split("/")[-1]
-    RpmPackages.create(:package_key => unique_package_key, :dist => @dist, :rpp => @rpp, :rpm => rpm, :version => @version, :arch => @arch)
+    Rpm::RpmPackages.create(:package_key => unique_package_key, :dist => @dist, :rpp => @rpp, :rpm => rpm, :version => @version, :arch => @arch)
   end
   
   def write_dependencies_to_db
     @dependencies.each_pair do |k,v|
-      RpmDependencies.create(:dependency => k, :version => v, :neededby => unique_package_key)
+      Rpm::RpmDependencies.create(:dependency => k, :version => v, :neededby => unique_package_key)
     end
   end
 
   def write_provides_to_db
     @provides.each_pair do |k,v|
-      RpmProvides.create(:provides => k, :providedby => unique_package_key)
+      Rpm::RpmProvides.create(:provides => k, :providedby => unique_package_key)
     end
   end
 
@@ -179,11 +232,35 @@ class Rpm < CliFuncs
   end
   
   def write_scripts
+    return true if @scripts == nil
     @scripts.each_pair do |k,v|
-      #puts "KEY: #{k} VAL: #{v}"
+      puts "KEY: #{k} VAL: #{v}" if DEBUG
       f = open("#{@fpp}/redhat/#{k}", 'w')
       f.print v
       f.close
+    end
+  end
+
+  def delete_package
+    set_info
+    delete_fs_entry
+    delete_db_entry
+  end
+
+  def delete_db_entry
+    puts "Removing #{@dist}/#{@rpp} with unique key of #{unique_package_key}" if DEBUG
+    Rpm::RpmPackages.where(:package_key => unique_package_key).delete_all
+    Rpm::RpmProvides.where(:providedby => unique_package_key).delete_all
+    Rpm::RpmDependencies.where(:neededby => unique_package_key).delete_all
+  end
+
+  def delete_fs_entry
+    begin
+      puts "Removing #{@fpp}" if DEBUG
+      FileUtils.rm_rf(@fpp)
+      FileUtils.rmdir(@pp) if Dir.entries(@pp).size <= 2
+    rescue Exception => e
+      puts "Tried to remove filesystem entry for #{@fpp} during #{self.class.name}.#{__method__}, received exception: #{e}"
     end
   end
 
@@ -193,7 +270,7 @@ class Rpm < CliFuncs
     @version = "#{@control["Version"]}-#{@control["Release"]}"
     @arch = @rpm_file.split("/")[-1].split(".")[-2]
     @rpp = "#{@group}/#{@name}.#{@arch}/#{@version}"
-    @fpp = "#{@packages_dir}/#{@dist}/#{@rpp}"
+    set_fpp
   end
 
   def prepare_package_dir
@@ -215,6 +292,8 @@ class Rpm < CliFuncs
     set_dependencies
     set_provides
     set_filelist
+    set_cpio_data
+    set_cpio_filelist
     set_scripts
   end
 
@@ -260,10 +339,14 @@ class Rpm < CliFuncs
 
     @output.each do |line|
       next if line.length == 0
+      puts "SCRIPT LINE: #{line}" if DEBUG
       if line =~ /^(\w+)\sscriptlet\s/
         script = $1
         puts "SCRIPT: #{script}" if DEBUG
         next
+      elsif line =~ /^(\w+)\sprogram:\s(.*)/
+        script = $1
+        line = $2
       end
       if(@scripts[script] == nil)
         @scripts[script] = line

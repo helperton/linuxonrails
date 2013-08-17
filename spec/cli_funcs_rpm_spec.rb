@@ -126,4 +126,22 @@ describe Rpm do
     r.create_package
     r.package_exists?.should == true
   end
+ 
+  it "should delete a package" do
+   r = Rpm.new
+   r.dist = "test_dist"
+   r.rpp = "Development/Libraries/libcom_err.x86_64/1.41.12-14.el6_4.2"
+   r.rpm_file = r.get_rpm_file(r.dist, r.rpp)
+   r.delete_package
+   r.package_exists?.should == false
+  end
+
+  it "should preprocess package" do
+    r = Rpm.new
+    r.rpm_file = "testfiles/libcom_err-1.41.12-14.el6_4.2.x86_64.rpm"
+    r.package_exists?.should == false
+    r.preprocess_package
+    r.package_exists?.should == false
+    r.get_rpm_file(r.dist, r.rpp).split('/')[-1].should == "libcom_err-1.41.12-14.el6_4.2.x86_64.rpm"
+  end
 end
